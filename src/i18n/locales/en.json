@@ -1,0 +1,9 @@
+{
+  "common": {
+    "changeLanguage": "Change language",
+    "labelExample": "text example",
+    "labelExampleFormatted": "example <underline>formatted</underline> text",
+    "generalError": "An error has occurred",
+    "styledButton": "Example of shadcn button "
+  }
+}

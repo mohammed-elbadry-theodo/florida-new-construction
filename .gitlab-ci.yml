@@ -1,0 +1,123 @@
+default:
+  image: node:20-alpine3.19
+  interruptible: true
+
+variables:
+  FF_USE_FASTZIP: "true"
+  ARTIFACT_COMPRESSION_LEVEL: "fast"
+  CACHE_COMPRESSION_LEVEL: "fast"
+
+stages:
+  - install
+  - test
+  - build
+
+workflow:
+  rules:
+    - if: "$CI_MERGE_REQUEST_IID"
+    - if: "$CI_COMMIT_BRANCH =~ /^(main)$/"
+
+before_script:
+  - corepack enable pnpm
+  - pnpm config set store-dir .pnpm-store
+
+# Ideally this job should not be executed if the nodemodule cache exists
+# Waiting for a solution to this issue: https://gitlab.com/gitlab-org/gitlab/-/issues/224650
+# A partial workaround is to avoid reuploading cache if not updated by using "allow_failure"
+Install Deps:
+  stage: install
+  script:
+    # node_modules exists => cache with key nodemodule+pnpm-lock.yaml hash exists => node_modules up to date with pnpm-lock.yaml
+    - test -d node_modules/ && { echo "Skipping $CI_JOB_NAME, node_modules already up-to-date."; exit 207; }
+    - pnpm install --prefer-offline --frozen-lockfile
+  allow_failure:
+    exit_codes: 207
+  cache:
+    - key: pnpmcache-$CI_JOB_IMAGE
+      paths:
+        - .pnpm-store
+    - key:
+        prefix: nodemodules-$CI_JOB_IMAGE
+        files:
+          - pnpm-lock.yaml
+      paths:
+        - node_modules
+  artifacts:
+    when: on_failure
+    paths:
+      - pnpm-lock.yaml
+
+Tests:
+  rules:
+    - if: "$CI_MERGE_REQUEST_IID"
+  stage: test
+  before_script:
+    - corepack enable pnpm
+    - pnpm config set store-dir .pnpm-store
+    - test -d node_modules/ || pnpm install --frozen-lockfile
+  script:
+    - pnpm knip
+    - pnpm lint
+    - pnpm test:snap --cacheDirectory .cicache/jest-snap
+    - pnpm test:coverage --cacheDirectory .cicache/jest
+    - node reportCoverage.js coverage/coverage-summary.json
+  coverage: '/Code coverage: \d+\.\d+/'
+  cache:
+    - key:
+        prefix: nodemodules-$CI_JOB_IMAGE
+        files:
+          - pnpm-lock.yaml
+      paths:
+        - node_modules
+      policy: pull
+    - key:
+        prefix: cicache-$CI_JOB_IMAGE
+        files:
+          - pnpm-lock.yaml
+      paths:
+        - .cicache
+    - key:
+        prefix: nextcache-$CI_JOB_IMAGE
+        files:
+          - pnpm-lock.yaml
+      paths:
+        - .next/cache
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+
+Build:
+  variables:
+    NEXT_PUBLIC_BUILD_ID: $CI_JOB_ID
+    NEXT_PUBLIC_BUILD_DATE: $CI_JOB_STARTED_AT
+    NEXT_PUBLIC_BUILD_SHA: $CI_COMMIT_SHA
+  stage: build
+  before_script:
+    - corepack enable pnpm
+    - pnpm config set store-dir .pnpm-store
+    - test -d node_modules/ || pnpm install --frozen-lockfile
+  script:
+    - pnpm build:export
+  artifacts:
+    paths:
+      - out
+    expire_in: 1 week
+  cache:
+    - key:
+        prefix: nodemodules-$CI_JOB_IMAGE
+        files:
+          - pnpm-lock.yaml
+      paths:
+        - node_modules
+      policy: pull
+    - key:
+        prefix: nextcache-$CI_JOB_IMAGE
+        files:
+          - pnpm-lock.yaml
+      paths:
+        - .next/cache

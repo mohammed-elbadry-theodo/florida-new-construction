@@ -1,0 +1,15 @@
+# Display colored text using tput
+RED=$(tput setaf 1)
+GREEN=$(tput setaf 2)
+NC=$(tput sgr0) # No color
+
+# Run pre-push-check
+echo "Running pre-push check..."
+pnpm pre-push-check
+
+if [ $? -ne 0 ]; then
+  echo "${RED}ERROR: Pre-push check failed.${NC}"
+  exit 1
+else
+  echo "${GREEN}Pre-push check done successfully.${NC}"
+fi

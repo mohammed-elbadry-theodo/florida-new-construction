@@ -1,0 +1,2 @@
+# Check if your commit message is valid using conventional rules
+pnpm commit-message-check $1

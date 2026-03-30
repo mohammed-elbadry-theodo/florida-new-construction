@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": ["@tsconfig/next/tsconfig.json", "@tsconfig/strictest/tsconfig.json"],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "downlevelIteration": true,
+    "paths": {
+      "~*": ["./src/*"]
+    },
+    "checkJs": true,
+    "strictNullChecks": true,
+    "target": "es6",
+    "noEmit": true
+  },
+  "exclude": ["node_modules"],
+  "include": [
+    "next-env.d.ts",
+    "env.d.ts",
+    "**/*.d.ts",
+    "**/.?*.js",
+    "**/*.json",
+    "**/*.jsx",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ]
+}

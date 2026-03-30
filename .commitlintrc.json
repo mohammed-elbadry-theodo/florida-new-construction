@@ -1,0 +1,9 @@
+{
+  "convention": "https://commitlint.js.org/#/concepts-commit-conventions",
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "header-max-length": [0],
+    "type-enum": [2, "always", ["feat", "fix", "refactor", "docs", "style", "test", "ci", "core", "chore", "perf"]],
+    "subject-case": [2, "never", ["sentence-case", "start-case", "pascal-case", "upper-case"]]
+  }
+}
