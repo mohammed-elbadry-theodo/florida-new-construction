@@ -1,6 +1,7 @@
 import React from "react";
 
 import { TestTranslationProvider } from "~i18n";
+import { store } from "~store/configure";
 
 // eslint-disable-next-line no-restricted-imports
 import type {
@@ -14,9 +15,19 @@ import type {
 // eslint-disable-next-line no-restricted-imports
 import { render, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
+import { Provider } from "react-redux";
+
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
 const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
-  return <TestTranslationProvider>{children}</TestTranslationProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Provider store={store}>
+        <TestTranslationProvider>{children}</TestTranslationProvider>
+      </Provider>
+    </QueryClientProvider>
+  );
 };
 
 const customRender = <
