@@ -1,0 +1,259 @@
+
+<style>
+  .wrap { padding: 1rem 0; font-size: 14px; color: var(--color-text-primary); }
+  .layer-block { margin-bottom: 28px; border-radius: var(--border-radius-lg); overflow: hidden; border: 0.5px solid var(--color-border-tertiary); }
+  .layer-header { padding: 12px 16px; font-size: 13px; font-weight: 500; }
+  .l1 .layer-header { background: #E6F1FB; color: #0C447C; }
+  .l2 .layer-header { background: #E1F5EE; color: #085041; }
+  .l3 .layer-header { background: #FAEEDA; color: #633806; }
+  .l4 .layer-header { background: #EEEDFE; color: #3C3489; }
+  @media (prefers-color-scheme: dark) {
+    .l1 .layer-header { background: #0C447C; color: #B5D4F4; }
+    .l2 .layer-header { background: #085041; color: #9FE1CB; }
+    .l3 .layer-header { background: #633806; color: #FAC775; }
+    .l4 .layer-header { background: #3C3489; color: #CECBF6; }
+  }
+  .data-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 16px; border-top: 0.5px solid var(--color-border-tertiary); }
+  .data-row:hover { background: var(--color-background-secondary); }
+  .data-name { flex: 1.4; font-weight: 500; font-size: 13px; color: var(--color-text-primary); }
+  .data-desc { flex: 2; font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; }
+  .source-list { flex: 2; display: flex; flex-wrap: wrap; gap: 5px; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; white-space: nowrap; font-weight: 500; }
+  .s-mls    { background: #E6F1FB; color: #185FA5; }
+  .s-gis    { background: #E1F5EE; color: #0F6E56; }
+  .s-clerk  { background: #FAEEDA; color: #854F0B; }
+  .s-permit { background: #EEEDFE; color: #534AB7; }
+  .s-zillow { background: #FAECE7; color: #993C1D; }
+  .s-fl     { background: #EAF3DE; color: #3B6D11; }
+  .s-calc   { background: #F1EFE8; color: #5F5E5A; }
+  .s-dbpr   { background: #FBEAF0; color: #993556; }
+  @media (prefers-color-scheme: dark) {
+    .s-mls    { background: #0C447C; color: #B5D4F4; }
+    .s-gis    { background: #085041; color: #9FE1CB; }
+    .s-clerk  { background: #633806; color: #FAC775; }
+    .s-permit { background: #3C3489; color: #CECBF6; }
+    .s-zillow { background: #993C1D; color: #F5C4B3; }
+    .s-fl     { background: #27500A; color: #C0DD97; }
+    .s-calc   { background: #444441; color: #D3D1C7; }
+    .s-dbpr   { background: #72243E; color: #F4C0D1; }
+  }
+  .col-headers { display: flex; gap: 12px; padding: 6px 16px; background: var(--color-background-secondary); }
+  .col-headers span { font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; }
+  .ch1 { flex: 1.4; }
+  .ch2 { flex: 2; }
+  .ch3 { flex: 2; }
+</style>
+
+<div class="wrap">
+
+  <!-- LAYER 1 -->
+  <div class="layer-block l1">
+    <div class="layer-header">Layer 1 — Regional heat map (landing view)</div>
+    <div class="col-headers">
+      <span class="ch1">Data needed</span>
+      <span class="ch2">What it's for</span>
+      <span class="ch3">Source</span>
+    </div>
+    <div class="data-row">
+      <div class="data-name">County boundaries (23 counties)</div>
+      <div class="data-desc">Draw the choropleth polygons on the map</div>
+      <div class="source-list"><span class="badge s-gis">Census TIGER/Line</span><span class="badge s-gis">County GIS portals</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Absorption rate per county</div>
+      <div class="data-desc">Color heat map by velocity</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-calc">Calculated</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Median sales price per county</div>
+      <div class="data-desc">Color heat map by price</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-clerk">County Clerk</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Previous month values (both metrics)</div>
+      <div class="data-desc">Calculate ▲/▼ month-over-month delta</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Product type split (SFH / Townhome)</div>
+      <div class="data-desc">Power the 4 toggle combo views</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span></div>
+    </div>
+  </div>
+
+  <!-- LAYER 2 -->
+  <div class="layer-block l2">
+    <div class="layer-header">Layer 2 — County view (subdivision map + builder presence + resale comps)</div>
+    <div class="col-headers">
+      <span class="ch1">Data needed</span>
+      <span class="ch2">What it's for</span>
+      <span class="ch3">Source</span>
+    </div>
+    <div class="data-row">
+      <div class="data-name">List of qualifying subdivisions</div>
+      <div class="data-desc">Pins on the map + sortable sidebar list</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-clerk">County Clerk (plats)</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Subdivision lat/lng</div>
+      <div class="data-desc">Place each pin on the map</div>
+      <div class="source-list"><span class="badge s-gis">County GIS portals</span><span class="badge s-gis">FGDL</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Velocity tier (high/med/low)</div>
+      <div class="data-desc">Pin color coding</div>
+      <div class="source-list"><span class="badge s-calc">Calculated from absorption rate</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Absorption rate + sales count</div>
+      <div class="data-desc">County-wide velocity sidebar + per subdivision</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-calc">Calculated</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Median price (SFH + Townhome)</div>
+      <div class="data-desc">County summary sidebar</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-clerk">County Clerk</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Active inventory count</div>
+      <div class="data-desc">Months of supply calculation</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-permit">Permit portals</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Months of supply</div>
+      <div class="data-desc">County summary sidebar</div>
+      <div class="source-list"><span class="badge s-calc">Calculated (inventory ÷ 3-mo avg velocity)</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Builder name per subdivision</div>
+      <div class="data-desc">Builder presence panel + filter</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-dbpr">Florida DBPR</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Builder available inventory + market share</div>
+      <div class="data-desc">Builder presence panel ranked list</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-calc">Calculated</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Builder trailing 3-mo avg velocity</div>
+      <div class="data-desc">Builder presence panel</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-calc">Calculated</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Resale active listings (built &lt;7 yrs)</div>
+      <div class="data-desc">New vs. resale comparison panel</div>
+      <div class="source-list"><span class="badge s-zillow">Zillow API</span><span class="badge s-mls">MLS active listings</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Resale absorption rate + median price</div>
+      <div class="data-desc">New vs. resale comparison panel</div>
+      <div class="source-list"><span class="badge s-zillow">Zillow API</span><span class="badge s-mls">Bridge API / MLS</span></div>
+    </div>
+  </div>
+
+  <!-- LAYER 3 -->
+  <div class="layer-block l3">
+    <div class="layer-header">Layer 3 — Subdivision snapshot (current month)</div>
+    <div class="col-headers">
+      <span class="ch1">Data needed</span>
+      <span class="ch2">What it's for</span>
+      <span class="ch3">Source</span>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Subdivision name (official plat name)</div>
+      <div class="data-desc">Header of the snapshot</div>
+      <div class="source-list"><span class="badge s-clerk">County Clerk (plat records)</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Builder(s) list</div>
+      <div class="data-desc">Who is actively selling</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-dbpr">Florida DBPR</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Total platted lots</div>
+      <div class="data-desc">Size of the subdivision</div>
+      <div class="source-list"><span class="badge s-clerk">County Clerk (plat maps)</span><span class="badge s-gis">County GIS</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Lots remaining (no CO yet)</div>
+      <div class="data-desc">Remaining inventory</div>
+      <div class="source-list"><span class="badge s-permit">Local permit portals</span><span class="badge s-fl">FL Dept. of Revenue</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Closed sales this month (absolute + absorption)</div>
+      <div class="data-desc">Current month velocity</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-clerk">County Clerk (deeds)</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Median price (SFH + Townhome)</div>
+      <div class="data-desc">Current month pricing</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Price per square foot</div>
+      <div class="data-desc">Apples-to-apples price comparison</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-calc">Calculated (price ÷ sqft)</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Months of supply</div>
+      <div class="data-desc">Subdivision-level supply gauge</div>
+      <div class="source-list"><span class="badge s-calc">Calculated (lots remaining ÷ 3-mo avg)</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Concession rate + median concession $</div>
+      <div class="data-desc">Builder pricing pressure indicator</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS (concession fields)</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Lot size dimensions per tier</div>
+      <div class="data-desc">Lot size mix panel (if available)</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-clerk">Plat maps</span><span class="badge s-gis">County GIS</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Sales + inventory + price per lot size tier</div>
+      <div class="data-desc">Velocity and pricing by lot size</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-calc">Calculated</span></div>
+    </div>
+  </div>
+
+  <!-- LAYER 4 -->
+  <div class="layer-block l4">
+    <div class="layer-header">Layer 4 — Subdivision historical performance</div>
+    <div class="col-headers">
+      <span class="ch1">Data needed</span>
+      <span class="ch2">What it's for</span>
+      <span class="ch3">Source</span>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Monthly sales count (all time)</div>
+      <div class="data-desc">Bar chart — absolute velocity over time</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-clerk">County Clerk</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Monthly absorption rate (all time)</div>
+      <div class="data-desc">Line chart overlaid on velocity bars</div>
+      <div class="source-list"><span class="badge s-calc">Calculated from MLS data</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Monthly median price SFH + Townhome (all time)</div>
+      <div class="data-desc">Price trend chart — dual lines</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Monthly sales by lot size tier (all time)</div>
+      <div class="data-desc">Stacked bar chart by lot size</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS</span><span class="badge s-calc">Calculated</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">Monthly concession rate + amount (all time)</div>
+      <div class="data-desc">Concession trend line chart</div>
+      <div class="source-list"><span class="badge s-mls">Bridge API / MLS (concession fields)</span></div>
+    </div>
+    <div class="data-row">
+      <div class="data-name">First recorded sale date</div>
+      <div class="data-desc">Start point of all historical charts</div>
+      <div class="source-list"><span class="badge s-clerk">County Clerk (warranty deeds)</span></div>
+    </div>
+  </div>
+
+</div>

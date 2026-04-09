@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm typecheck:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git config:*)",
+      "Bash(npx lint-staged:*)",
+      "Bash(git submodule:*)"
+    ]
+  }
+}

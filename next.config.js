@@ -9,10 +9,16 @@ const contentSecurityPolicy = {
   directives: {
     defaultSrc: "'self'",
     scriptSrc: "'self' 'unsafe-eval' 'unsafe-inline'",
-    childSrc: "'self' https://*",
+    // blob: required for Mapbox GL JS web workers
+    childSrc: "'self' blob: https://*",
+    workerSrc: "'self' blob:",
     styleSrc: "'self' https://*",
-    fontSrc: "'self'",
-    styleSrcElem: "'self' 'unsafe-inline'",
+    fontSrc: "'self' https://fonts.gstatic.com data:",
+    styleSrcElem: "'self' 'unsafe-inline' https://fonts.googleapis.com https://api.mapbox.com",
+    // Mapbox tiles, styles, sprites, glyphs, events, and geocoding
+    connectSrc: ["'self'", "https://*.mapbox.com", "https://api.mapbox.com", "https://events.mapbox.com"].join(" "),
+    // Mapbox sprites, marker images, data: URIs
+    imgSrc: "'self' data: blob: https://*.mapbox.com",
   },
 };
 

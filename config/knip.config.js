@@ -22,13 +22,8 @@ module.exports = {
     "config/**/*.{js,ts}",
   ],
   project: ["src/**/*.{js,ts,jsx,tsx}"],
-  ignoreDependencies: [
-    "sharp",
-    "@release-it/conventional-changelog",
-    "@types/react-redux",
-    "tailwindcss",
-    "tw-animate-css",
-  ],
+  ignoreDependencies: ["sharp", "@release-it/conventional-changelog", "@types/react-redux", "tw-animate-css"],
+  ignoreBinaries: ["commit-message-check"],
 };
 
 // More documentation on configuration: https://knip.dev/reference/configuration
