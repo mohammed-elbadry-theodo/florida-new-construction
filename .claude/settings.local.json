@@ -6,7 +6,14 @@
       "Bash(git config:*)",
       "Bash(npx lint-staged:*)",
       "Bash(git submodule:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npx eslint:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.census.gov)",
+      "Bash(node -e \"require\\('shapefile'\\); console.log\\('ok'\\)\")",
+      "Bash(node scripts/generate-cousub-geojson.mjs)",
+      "Bash(pnpm add *)",
+      "Bash(pnpm tsc *)"
     ]
   }
 }

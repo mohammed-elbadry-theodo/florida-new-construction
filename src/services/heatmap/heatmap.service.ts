@@ -1,4 +1,4 @@
-import type { HeatmapApiParams, HeatmapApiResponse } from "~components/heatmap/types";
+import type { HeatmapApiParams, HeatmapApiResponse, SubdivisionsApiParams, SubdivisionsApiResponse } from "~components/heatmap/types";
 import internalClient from "~utils/axiosInternalClient";
 
 const getCountyMetrics = async ({ metric, homeType }: HeatmapApiParams): Promise<HeatmapApiResponse> => {
@@ -7,5 +7,11 @@ const getCountyMetrics = async ({ metric, homeType }: HeatmapApiParams): Promise
   });
 };
 
-const heatmapService = { getCountyMetrics };
+const getSubdivisionPins = async ({ county, homeType }: SubdivisionsApiParams): Promise<SubdivisionsApiResponse> => {
+  return internalClient.get<SubdivisionsApiResponse>("/api/heatmap/subdivisions", {
+    params: { county, homeType },
+  });
+};
+
+const heatmapService = { getCountyMetrics, getSubdivisionPins };
 export default heatmapService;

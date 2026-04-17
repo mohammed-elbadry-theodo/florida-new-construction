@@ -7,12 +7,14 @@ import { createSlice } from "@reduxjs/toolkit";
 
 type HeatmapState = {
   selectedCounty: string | null;
+  selectedSubdivision: string | null;
   metric: MetricType;
   homeType: HomeType;
 };
 
 const initialState: HeatmapState = {
   selectedCounty: null,
+  selectedSubdivision: null,
   metric: "velocity",
   homeType: "sfh",
 };
@@ -24,6 +26,11 @@ const heatmapSlice = createSlice({
   reducers: {
     setSelectedCounty: (state, action: PayloadAction<string | null>) => {
       state.selectedCounty = action.payload;
+      // clear subdivision whenever county changes
+      state.selectedSubdivision = null;
+    },
+    setSelectedSubdivision: (state, action: PayloadAction<string | null>) => {
+      state.selectedSubdivision = action.payload;
     },
     setMetric: (state, action: PayloadAction<MetricType>) => {
       state.metric = action.payload;
@@ -34,9 +41,10 @@ const heatmapSlice = createSlice({
   },
 });
 
-export const { setSelectedCounty, setMetric, setHomeType } = heatmapSlice.actions;
+export const { setSelectedCounty, setSelectedSubdivision, setMetric, setHomeType } = heatmapSlice.actions;
 
 export const selectSelectedCounty = (state: RootState): string | null => state.heatmap.selectedCounty;
+export const selectSelectedSubdivision = (state: RootState): string | null => state.heatmap.selectedSubdivision;
 export const selectMetric = (state: RootState): MetricType => state.heatmap.metric;
 export const selectHomeType = (state: RootState): HomeType => state.heatmap.homeType;
 
