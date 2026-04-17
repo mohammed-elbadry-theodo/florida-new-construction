@@ -33,28 +33,50 @@ type LayerPaint = Record<string, unknown>;
 
 const VELOCITY_FILL: LayerPaint = {
   "fill-color": [
-    "interpolate", ["linear"],
+    "interpolate",
+    ["linear"],
     ["coalesce", ["feature-state", "value"], 0],
-    0, "#3a1f2a", 3, "#c0392b", 7, "#e67e22", 12, "#27ae60", 20, "#00875a",
+    0,
+    "#3a1f2a",
+    3,
+    "#c0392b",
+    7,
+    "#e67e22",
+    12,
+    "#27ae60",
+    20,
+    "#00875a",
   ],
   "fill-opacity": [
     "case",
-    ["boolean", ["feature-state", "selected"], false], 0.1,
-    ["boolean", ["feature-state", "hover"], false], 0.55,
+    ["boolean", ["feature-state", "selected"], false],
+    0.1,
+    ["boolean", ["feature-state", "hover"], false],
+    0.55,
     0.4,
   ],
 };
 
 const PRICE_FILL: LayerPaint = {
   "fill-color": [
-    "interpolate", ["linear"],
+    "interpolate",
+    ["linear"],
     ["coalesce", ["feature-state", "value"], 0],
-    250000, "#0d3d5c", 350000, "#1478a0", 450000, "#00b4c8", 600000, "#8cddd6",
+    250000,
+    "#0d3d5c",
+    350000,
+    "#1478a0",
+    450000,
+    "#00b4c8",
+    600000,
+    "#8cddd6",
   ],
   "fill-opacity": [
     "case",
-    ["boolean", ["feature-state", "selected"], false], 0.1,
-    ["boolean", ["feature-state", "hover"], false], 0.55,
+    ["boolean", ["feature-state", "selected"], false],
+    0.1,
+    ["boolean", ["feature-state", "hover"], false],
+    0.55,
     0.4,
   ],
 };
@@ -67,13 +89,27 @@ const BORDER_LINE: LayerPaint = {
 // ─── cousub (subdivision boundary) paint ─────────────────────────────────────
 const COUSUB_FILL: LayerPaint = {
   "fill-color": "#38bdf8",
-  "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.22, 0.07],
+  "fill-opacity": [
+    "case",
+    ["boolean", ["feature-state", "sidebarHover"], false],
+    0.28,
+    ["boolean", ["feature-state", "hover"], false],
+    0.22,
+    0.07,
+  ],
 };
 
 const COUSUB_LINE: LayerPaint = {
-  "line-color": "#38bdf8",
-  "line-width": 1.2,
-  "line-opacity": 0.65,
+  "line-color": ["case", ["boolean", ["feature-state", "sidebarHover"], false], "#e0f2fe", "#38bdf8"],
+  "line-width": [
+    "case",
+    ["boolean", ["feature-state", "sidebarHover"], false],
+    2.4,
+    ["boolean", ["feature-state", "hover"], false],
+    1.8,
+    1.2,
+  ],
+  "line-opacity": ["case", ["boolean", ["feature-state", "sidebarHover"], false], 1, 0.65],
 };
 
 // ─── subdivision pins paint (uniform size) ────────────────────────────────────
@@ -81,12 +117,7 @@ const PIN_CIRCLE: LayerPaint = {
   "circle-radius": 7,
   "circle-color": "#f59e0b",
   "circle-stroke-width": 2,
-  "circle-stroke-color": [
-    "case",
-    ["boolean", ["feature-state", "hover"], false],
-    "#ffffff",
-    "rgba(255,255,255,0.6)",
-  ],
+  "circle-stroke-color": ["case", ["boolean", ["feature-state", "hover"], false], "#ffffff", "rgba(255,255,255,0.6)"],
   "circle-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1, 0.88],
 };
 
@@ -105,7 +136,10 @@ function extractCoords(coords: Coord, out: [number, number][]): void {
 function geometryBbox(geometry: { type: string; coordinates: Coord }): [number, number, number, number] {
   const pts: [number, number][] = [];
   extractCoords(geometry.coordinates, pts);
-  let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+  let minLng = Infinity,
+    maxLng = -Infinity,
+    minLat = Infinity,
+    maxLat = -Infinity;
   for (const [lng, lat] of pts) {
     if (lng < minLng) minLng = lng;
     if (lng > maxLng) maxLng = lng;
@@ -140,6 +174,7 @@ interface HeatmapMapProps {
   counties: CountyMetric[];
   activeMetric: MetricType;
   selectedCounty: string | null;
+  hoveredSubdivisionId?: string | null;
   subdivisions?: SubdivisionPin[];
   onCountyClick: (county: string) => void;
 }
@@ -147,7 +182,15 @@ interface HeatmapMapProps {
 type HoverState =
   | { kind: "county"; posX: number; posY: number; county: CountyMetric }
   | { kind: "cousub"; posX: number; posY: number; name: string; namelsad: string }
-  | { kind: "pin"; posX: number; posY: number; name: string; builder: string; absorptionRate: number; medianClosePrice: number };
+  | {
+      kind: "pin";
+      posX: number;
+      posY: number;
+      name: string;
+      builder: string;
+      absorptionRate: number;
+      medianClosePrice: number;
+    };
 
 // ─── component ────────────────────────────────────────────────────────────────
 
@@ -155,6 +198,7 @@ export default function HeatmapMap({
   counties,
   activeMetric,
   selectedCounty,
+  hoveredSubdivisionId,
   subdivisions,
   onCountyClick,
 }: HeatmapMapProps): React.ReactElement {
@@ -165,26 +209,32 @@ export default function HeatmapMap({
   const hoveredFips = useRef<string | null>(null);
   const hoveredCosubId = useRef<string | null>(null);
   const hoveredPinId = useRef<string | null>(null);
+  const sidebarHoveredCosubId = useRef<string | null>(null);
   const selectedFips = useRef<string | null>(null);
 
   // build a stable GeoJSON FeatureCollection from subdivision pins
-  const pinsGeoJson = useMemo((): FeatureCollection<Point> => ({
-    type: "FeatureCollection",
-    features: (subdivisions ?? []).map((s) => ({
-      type: "Feature",
-      id: s.id,
-      geometry: { type: "Point", coordinates: [s.lng, s.lat] },
-      properties: {
-        name: s.name,
-        builder: s.builder,
-        absorptionRate: s.absorptionRate,
-        medianClosePrice: s.medianClosePrice,
-      },
-    })),
-  }), [subdivisions]);
+  const pinsGeoJson = useMemo(
+    (): FeatureCollection<Point> => ({
+      type: "FeatureCollection",
+      features: (subdivisions ?? []).map((s) => ({
+        type: "Feature",
+        id: s.id,
+        geometry: { type: "Point", coordinates: [s.lng, s.lat] },
+        properties: {
+          name: s.name,
+          builder: s.builder,
+          absorptionRate: s.absorptionRate,
+          medianClosePrice: s.medianClosePrice,
+        },
+      })),
+    }),
+    [subdivisions],
+  );
 
   // load county bboxes on mount
-  useEffect(() => { void loadCountyBboxes(); }, []);
+  useEffect(() => {
+    void loadCountyBboxes();
+  }, []);
 
   // ── county metric feature-state ──────────────────────────────────────────
   useEffect(() => {
@@ -209,7 +259,7 @@ export default function HeatmapMap({
       map.setFeatureState({ source: SOURCE_ID, id: selectedFips.current }, { selected: false });
     }
 
-    const nextFips = selectedCounty === null ? null : (COUNTY_NAME_TO_FIPS[selectedCounty] ?? null);
+    const nextFips = selectedCounty === null ? null : COUNTY_NAME_TO_FIPS[selectedCounty] ?? null;
 
     if (nextFips !== null) {
       map.setFeatureState({ source: SOURCE_ID, id: nextFips }, { selected: true });
@@ -218,7 +268,10 @@ export default function HeatmapMap({
       if (bbox !== undefined) {
         const [minLng, minLat, maxLng, maxLat] = bbox;
         map.fitBounds(
-          [[minLng, minLat], [maxLng, maxLat]],
+          [
+            [minLng, minLat],
+            [maxLng, maxLat],
+          ],
           { padding: 60, maxZoom: 11, duration: 1200, essential: true },
         );
       }
@@ -233,6 +286,26 @@ export default function HeatmapMap({
 
     selectedFips.current = nextFips;
   }, [selectedCounty, mapLoaded]);
+
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (map === undefined) return;
+    const nextSidebarHoveredCosubId =
+      typeof hoveredSubdivisionId === "string" && hoveredSubdivisionId !== "" ? hoveredSubdivisionId : null;
+
+    if (sidebarHoveredCosubId.current !== null) {
+      map.setFeatureState({ source: COUSUB_SOURCE_ID, id: sidebarHoveredCosubId.current }, { sidebarHover: false });
+    }
+
+    if (nextSidebarHoveredCosubId !== null) {
+      map.setFeatureState({ source: COUSUB_SOURCE_ID, id: nextSidebarHoveredCosubId }, { sidebarHover: true });
+      sidebarHoveredCosubId.current = nextSidebarHoveredCosubId;
+      return;
+    }
+
+    sidebarHoveredCosubId.current = null;
+  }, [hoveredSubdivisionId, mapLoaded]);
 
   // ── hover ─────────────────────────────────────────────────────────────────
   const onMouseMove = useCallback(
@@ -299,7 +372,8 @@ export default function HeatmapMap({
         hoveredPinId.current = null;
         const countyName = FIPS_TO_COUNTY_NAME[fips];
         const countyData = countyName === undefined ? undefined : counties.find((c) => c.county === countyName);
-        if (countyData !== undefined) setHover({ kind: "county", posX: e.point.x, posY: e.point.y, county: countyData });
+        if (countyData !== undefined)
+          setHover({ kind: "county", posX: e.point.x, posY: e.point.y, county: countyData });
         else setHover(null);
       }
     },
@@ -342,9 +416,7 @@ export default function HeatmapMap({
     return (
       <div className="flex size-full items-center justify-center text-sm text-gray-500">
         Add{" "}
-        <code className="mx-1 rounded-sm bg-gray-800 px-1 py-0.5 text-xs text-gray-300">
-          NEXT_PUBLIC_MAPBOX_TOKEN
-        </code>{" "}
+        <code className="mx-1 rounded-sm bg-gray-800 px-1 py-0.5 text-xs text-gray-300">NEXT_PUBLIC_MAPBOX_TOKEN</code>{" "}
         to .env to display the map.
       </div>
     );
@@ -352,9 +424,8 @@ export default function HeatmapMap({
 
   const fillPaint = activeMetric === "velocity" ? VELOCITY_FILL : PRICE_FILL;
 
-  const cosubFilter = selectedCounty !== null
-    ? (["==", ["get", "countyName"], selectedCounty] as never)
-    : (["==", false, true] as never);
+  const cosubFilter =
+    selectedCounty !== null ? (["==", ["get", "countyName"], selectedCounty] as never) : (["==", false, true] as never);
 
   return (
     <div className="relative size-full">
@@ -450,8 +521,8 @@ export default function HeatmapMap({
       </div>
 
       {/* ── hover tooltip ── */}
-      {hover !== null && (
-        hover.kind === "pin" ? (
+      {hover !== null &&
+        (hover.kind === "pin" ? (
           <div
             className="pointer-events-none absolute z-20 min-w-40 rounded-lg border border-white/10 bg-gray-900/95 p-3 shadow-xl"
             style={{ left: hover.posX + 14, top: hover.posY - 14 }}
@@ -487,12 +558,10 @@ export default function HeatmapMap({
               <span className="font-semibold text-white">${hover.county.medianClosePrice.toLocaleString()}</span>
             </p>
             <p className="text-xs text-gray-400">
-              Closed this month:{" "}
-              <span className="font-semibold text-white">{hover.county.closedSalesThisMonth}</span>
+              Closed this month: <span className="font-semibold text-white">{hover.county.closedSalesThisMonth}</span>
             </p>
           </div>
-        )
-      )}
+        ))}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { cn } from "~components/lib/utils";
 
+import { COUNTY_SUBDIVISIONS } from "./county-subdivisions.data";
 import type { CountyMetric, MetricType } from "./types";
 
 interface CountyRankingListProps {
@@ -9,6 +10,7 @@ interface CountyRankingListProps {
   activeMetric: MetricType;
   selectedCounty: string | null;
   onCountyClick: (county: string) => void;
+  onSubdivisionHover: (subdivisionId: string | null) => void;
 }
 
 function getMomDeltaLabel(metric: MetricType, data: CountyMetric): { label: string; up: boolean } {
@@ -16,6 +18,7 @@ function getMomDeltaLabel(metric: MetricType, data: CountyMetric): { label: stri
     const velocityDelta = data.absorptionRate - data.absorptionRatePrevMonth;
     return { label: `${Math.abs(velocityDelta).toFixed(1)}%`, up: velocityDelta >= 0 };
   }
+
   const priceDelta = data.medianClosePrice - data.medianClosePricePrevMonth;
   return { label: `$${Math.abs(Math.round(priceDelta / 1000)).toFixed(0)}k`, up: priceDelta >= 0 };
 }
@@ -23,6 +26,10 @@ function getMomDeltaLabel(metric: MetricType, data: CountyMetric): { label: stri
 function getMetricLabel(metric: MetricType, data: CountyMetric): string {
   if (metric === "velocity") return `${data.absorptionRate.toFixed(1)}%`;
   return `$${(data.medianClosePrice / 1000).toFixed(0)}k`;
+}
+
+function getSubdivisionPanelId(county: string): string {
+  return `county-subdivisions-${county.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 }
 
 const TIER_DOT: Record<string, string> = {
@@ -36,6 +43,7 @@ export default function CountyRankingList({
   activeMetric,
   selectedCounty,
   onCountyClick,
+  onSubdivisionHover,
 }: CountyRankingListProps): React.ReactElement {
   const sorted = [...counties].sort((itemA, itemB) => {
     const valA = activeMetric === "velocity" ? itemA.absorptionRate : itemA.medianClosePrice;
@@ -44,31 +52,72 @@ export default function CountyRankingList({
   });
 
   return (
-    <div className="flex flex-col gap-0.5 overflow-y-auto">
+    <div className="flex flex-col gap-1 overflow-y-auto">
       {sorted.map((item, idx) => {
         const { label: deltaLabel, up } = getMomDeltaLabel(activeMetric, item);
         const isSelected = selectedCounty === item.county;
+        const subdivisions = COUNTY_SUBDIVISIONS[item.county] ?? [];
+        const subdivisionPanelId = getSubdivisionPanelId(item.county);
 
         return (
-          <button
+          <div
             key={item.county}
-            type="button"
-            onClick={() => {
-              onCountyClick(item.county);
-            }}
             className={cn(
-              "flex items-center gap-2 rounded-sm px-2 py-1.5 text-left transition-colors",
-              isSelected ? "bg-white/10" : "hover:bg-white/5",
+              "rounded-md border border-transparent transition-colors",
+              isSelected ? "border-white/10 bg-white/5" : "hover:bg-white/5",
             )}
           >
-            <span className="w-5 shrink-0 text-right text-[10px] text-gray-600">{idx + 1}</span>
-            <span className={cn("size-2  shrink-0 rounded-full", TIER_DOT[item.velocityTier] ?? "bg-gray-500")} />
-            <span className="flex-1 truncate text-xs text-gray-200">{item.county}</span>
-            <span className="text-xs font-semibold text-white tabular-nums">{getMetricLabel(activeMetric, item)}</span>
-            <span className={cn("text-[10px] tabular-nums", up ? "text-emerald-400" : "text-red-400")}>
-              {up ? "▲" : "▼"} {deltaLabel}
-            </span>
-          </button>
+            <button
+              type="button"
+              aria-controls={subdivisionPanelId}
+              aria-expanded={isSelected}
+              onClick={() => {
+                onCountyClick(item.county);
+              }}
+              className="flex w-full items-center gap-2 px-2 py-1.5 text-left"
+            >
+              <span className="w-5 shrink-0 text-right text-[10px] text-gray-600">{idx + 1}</span>
+              <span className={cn("size-2 shrink-0 rounded-full", TIER_DOT[item.velocityTier] ?? "bg-gray-500")} />
+              <span className="flex-1 truncate text-xs text-gray-200">{item.county}</span>
+              <span className="text-xs font-semibold text-white tabular-nums">
+                {getMetricLabel(activeMetric, item)}
+              </span>
+              <span className={cn("text-[10px] tabular-nums", up ? "text-emerald-400" : "text-red-400")}>
+                {up ? "+" : "-"}
+                {deltaLabel}
+              </span>
+            </button>
+
+            {isSelected && subdivisions.length > 0 && (
+              <div
+                id={subdivisionPanelId}
+                className="pb-2 pl-9 pr-2"
+                onMouseLeave={() => {
+                  onSubdivisionHover(null);
+                }}
+              >
+                <div className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-2">
+                  <p className="mb-2 text-[10px] font-semibold text-gray-500">County subdivisions</p>
+                  <ul className="space-y-1.5">
+                    {subdivisions.map((subdivision) => (
+                      <li
+                        key={subdivision.id}
+                        className="rounded-sm transition-colors hover:bg-sky-300/10"
+                        onMouseEnter={() => {
+                          onSubdivisionHover(subdivision.id);
+                        }}
+                      >
+                        <div className="flex items-start gap-2 px-1 py-0.5">
+                          <span className="mt-2 h-px w-2 shrink-0 bg-sky-300/70" aria-hidden="true" />
+                          <span className="text-[11px] leading-4 text-gray-300">{subdivision.label}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
         );
       })}
     </div>

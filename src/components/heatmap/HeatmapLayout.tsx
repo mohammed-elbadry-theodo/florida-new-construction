@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { useCountyMetrics } from "~hooks/heatmap";
 import {
   selectHomeType,
@@ -20,9 +22,7 @@ import dynamic from "next/dynamic";
 
 const HeatmapMap = dynamic(async () => import("./HeatmapMap"), {
   ssr: false,
-  loading: () => (
-    <div className="flex size-full items-center justify-center text-sm text-gray-600">Loading map…</div>
-  ),
+  loading: () => <div className="flex size-full items-center justify-center text-sm text-gray-600">Loading map…</div>,
 });
 
 function formatMonthLabel(month: string | null | undefined): string {
@@ -35,18 +35,25 @@ export default function HeatmapLayout(): React.ReactElement {
   const metric = useAppSelector(selectMetric);
   const homeType = useAppSelector(selectHomeType);
   const selectedCounty = useAppSelector(selectSelectedCounty);
+  const [hoveredSubdivisionId, setHoveredSubdivisionId] = useState<string | null>(null);
 
   const { counties, loading, month } = useCountyMetrics(metric, homeType);
 
   const countySpotlight =
     selectedCounty !== null && counties !== undefined
-      ? (counties.find((e) => e.county === selectedCounty) ?? null)
+      ? counties.find((e) => e.county === selectedCounty) ?? null
       : null;
 
   const monthLabel = formatMonthLabel(month);
 
-  const handleCountyClick = (county: string) =>
+  useEffect(() => {
+    setHoveredSubdivisionId(null);
+  }, [selectedCounty]);
+
+  const handleCountyClick = (county: string) => {
+    setHoveredSubdivisionId(null);
     dispatch(setSelectedCounty(selectedCounty === county ? null : county));
+  };
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-gray-950 text-white">
@@ -65,8 +72,8 @@ export default function HeatmapLayout(): React.ReactElement {
       {/* body */}
       <div className="flex flex-1 overflow-hidden">
         {/* left — county ranking list */}
-        <aside className="w-56 shrink-0 overflow-y-auto border-r border-white/10 px-2 py-3">
-          <p className="mb-2 px-2 text-[10px] font-semibold tracking-widest text-gray-500 uppercase">Counties</p>
+        <aside className="w-72 shrink-0 overflow-y-auto border-r border-white/10 px-2 py-3">
+          <p className="mb-2 px-2 text-xs font-semibold text-gray-500">Counties</p>
           {loading || counties === undefined ? (
             <p className="px-2 text-xs text-gray-600">Loading…</p>
           ) : (
@@ -75,6 +82,7 @@ export default function HeatmapLayout(): React.ReactElement {
               activeMetric={metric}
               selectedCounty={selectedCounty}
               onCountyClick={handleCountyClick}
+              onSubdivisionHover={setHoveredSubdivisionId}
             />
           )}
         </aside>
@@ -86,6 +94,7 @@ export default function HeatmapLayout(): React.ReactElement {
               counties={counties}
               activeMetric={metric}
               selectedCounty={selectedCounty}
+              hoveredSubdivisionId={hoveredSubdivisionId}
               onCountyClick={handleCountyClick}
             />
           )}
@@ -94,10 +103,7 @@ export default function HeatmapLayout(): React.ReactElement {
         {/* right — spotlight panel */}
         <aside className="w-64 shrink-0 overflow-y-auto border-l border-white/10 p-3">
           {countySpotlight !== null ? (
-            <CountySpotlightCard
-              county={countySpotlight}
-              onClose={() => dispatch(setSelectedCounty(null))}
-            />
+            <CountySpotlightCard county={countySpotlight} onClose={() => dispatch(setSelectedCounty(null))} />
           ) : (
             <p className="px-1 pt-2 text-[11px] text-gray-600">Click a county to see details</p>
           )}
