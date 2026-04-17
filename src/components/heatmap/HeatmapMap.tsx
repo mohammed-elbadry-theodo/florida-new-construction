@@ -12,7 +12,6 @@ import Map, { Layer, Source } from "react-map-gl/mapbox";
 
 const MAPBOX_TOKEN = process.env["NEXT_PUBLIC_MAPBOX_TOKEN"] ?? "";
 
-// ─── source / layer ids ───────────────────────────────────────────────────────
 const SOURCE_ID = "fl-counties";
 const FILL_ID = "fl-counties-fill";
 const LINE_ID = "fl-counties-line";
@@ -28,8 +27,8 @@ const PINS_CIRCLE_ID = "fl-pins-circle";
 
 const INITIAL_VIEW = { longitude: -81.5, latitude: 27.8, zoom: 6 };
 
-// ─── paint helpers ────────────────────────────────────────────────────────────
 type LayerPaint = Record<string, unknown>;
+type Coord = number[] | Coord[];
 
 const VELOCITY_FILL: LayerPaint = {
   "fill-color": [
@@ -86,11 +85,12 @@ const BORDER_LINE: LayerPaint = {
   "line-width": ["case", ["boolean", ["feature-state", "selected"], false], 2.5, 0.8],
 };
 
-// ─── cousub (subdivision boundary) paint ─────────────────────────────────────
 const COUSUB_FILL: LayerPaint = {
   "fill-color": "#38bdf8",
   "fill-opacity": [
     "case",
+    ["boolean", ["feature-state", "selected"], false],
+    0.3,
     ["boolean", ["feature-state", "sidebarHover"], false],
     0.28,
     ["boolean", ["feature-state", "hover"], false],
@@ -100,19 +100,34 @@ const COUSUB_FILL: LayerPaint = {
 };
 
 const COUSUB_LINE: LayerPaint = {
-  "line-color": ["case", ["boolean", ["feature-state", "sidebarHover"], false], "#e0f2fe", "#38bdf8"],
+  "line-color": [
+    "case",
+    ["boolean", ["feature-state", "selected"], false],
+    "#ffffff",
+    ["boolean", ["feature-state", "sidebarHover"], false],
+    "#e0f2fe",
+    "#38bdf8",
+  ],
   "line-width": [
     "case",
+    ["boolean", ["feature-state", "selected"], false],
+    2.8,
     ["boolean", ["feature-state", "sidebarHover"], false],
     2.4,
     ["boolean", ["feature-state", "hover"], false],
     1.8,
     1.2,
   ],
-  "line-opacity": ["case", ["boolean", ["feature-state", "sidebarHover"], false], 1, 0.65],
+  "line-opacity": [
+    "case",
+    ["boolean", ["feature-state", "selected"], false],
+    1,
+    ["boolean", ["feature-state", "sidebarHover"], false],
+    1,
+    0.65,
+  ],
 };
 
-// ─── subdivision pins paint (uniform size) ────────────────────────────────────
 const PIN_CIRCLE: LayerPaint = {
   "circle-radius": 7,
   "circle-color": "#f59e0b",
@@ -121,62 +136,64 @@ const PIN_CIRCLE: LayerPaint = {
   "circle-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1, 0.88],
 };
 
-// ─── geometry helpers ─────────────────────────────────────────────────────────
-
-type Coord = number[] | Coord[];
-
 function extractCoords(coords: Coord, out: [number, number][]): void {
   if (typeof coords[0] === "number") {
     out.push(coords as [number, number]);
-  } else {
-    for (const child of coords as Coord[]) extractCoords(child, out);
+    return;
+  }
+
+  for (const child of coords as Coord[]) {
+    extractCoords(child, out);
   }
 }
 
 function geometryBbox(geometry: { type: string; coordinates: Coord }): [number, number, number, number] {
-  const pts: [number, number][] = [];
-  extractCoords(geometry.coordinates, pts);
-  let minLng = Infinity,
-    maxLng = -Infinity,
-    minLat = Infinity,
-    maxLat = -Infinity;
-  for (const [lng, lat] of pts) {
+  const points: [number, number][] = [];
+  extractCoords(geometry.coordinates, points);
+
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+
+  for (const [lng, lat] of points) {
     if (lng < minLng) minLng = lng;
     if (lng > maxLng) maxLng = lng;
     if (lat < minLat) minLat = lat;
     if (lat > maxLat) maxLat = lat;
   }
+
   return [minLng, minLat, maxLng, maxLat];
 }
-
-// ─── county bbox cache ────────────────────────────────────────────────────────
 
 const countyBboxCache: Record<string, [number, number, number, number]> = {};
 
 async function loadCountyBboxes(): Promise<void> {
   if (Object.keys(countyBboxCache).length > 0) return;
+
   try {
-    const res = await fetch(GEOJSON_URL);
-    const geojson = (await res.json()) as {
+    const response = await fetch(GEOJSON_URL);
+    const geojson = (await response.json()) as {
       features: Array<{ id: string; geometry: { type: string; coordinates: Coord } }>;
     };
+
     for (const feature of geojson.features) {
       countyBboxCache[feature.id] = geometryBbox(feature.geometry);
     }
   } catch {
-    // non-fatal
+    // Non-fatal: the map can still render without fitBounds support.
   }
 }
-
-// ─── types ────────────────────────────────────────────────────────────────────
 
 interface HeatmapMapProps {
   counties: CountyMetric[];
   activeMetric: MetricType;
   selectedCounty: string | null;
   hoveredSubdivisionId?: string | null;
+  selectedSubdivisionId?: string | null;
   subdivisions?: SubdivisionPin[];
   onCountyClick: (county: string) => void;
+  onSubdivisionSelect: (subdivisionId: string) => void;
 }
 
 type HoverState =
@@ -192,79 +209,78 @@ type HoverState =
       medianClosePrice: number;
     };
 
-// ─── component ────────────────────────────────────────────────────────────────
-
 export default function HeatmapMap({
   counties,
   activeMetric,
   selectedCounty,
   hoveredSubdivisionId,
+  selectedSubdivisionId,
   subdivisions,
   onCountyClick,
+  onSubdivisionSelect,
 }: HeatmapMapProps): React.ReactElement {
   const mapRef = useRef<MapRef>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [hover, setHover] = useState<HoverState | null>(null);
 
-  const hoveredFips = useRef<string | null>(null);
-  const hoveredCosubId = useRef<string | null>(null);
+  const hoveredCountyId = useRef<string | null>(null);
+  const hoveredSubdivisionBoundaryId = useRef<string | null>(null);
   const hoveredPinId = useRef<string | null>(null);
-  const sidebarHoveredCosubId = useRef<string | null>(null);
-  const selectedFips = useRef<string | null>(null);
+  const sidebarHoveredSubdivisionId = useRef<string | null>(null);
+  const selectedCountyId = useRef<string | null>(null);
+  const selectedSubdivisionBoundaryId = useRef<string | null>(null);
 
-  // build a stable GeoJSON FeatureCollection from subdivision pins
   const pinsGeoJson = useMemo(
     (): FeatureCollection<Point> => ({
       type: "FeatureCollection",
-      features: (subdivisions ?? []).map((s) => ({
+      features: (subdivisions ?? []).map((subdivision) => ({
         type: "Feature",
-        id: s.id,
-        geometry: { type: "Point", coordinates: [s.lng, s.lat] },
+        id: subdivision.id,
+        geometry: { type: "Point", coordinates: [subdivision.lng, subdivision.lat] },
         properties: {
-          name: s.name,
-          builder: s.builder,
-          absorptionRate: s.absorptionRate,
-          medianClosePrice: s.medianClosePrice,
+          name: subdivision.name,
+          builder: subdivision.builder,
+          absorptionRate: subdivision.absorptionRate,
+          medianClosePrice: subdivision.medianClosePrice,
         },
       })),
     }),
     [subdivisions],
   );
 
-  // load county bboxes on mount
   useEffect(() => {
     void loadCountyBboxes();
   }, []);
 
-  // ── county metric feature-state ──────────────────────────────────────────
   useEffect(() => {
     if (!mapLoaded) return;
     const map = mapRef.current?.getMap();
     if (map === undefined) return;
+
     for (const county of counties) {
       const fips = COUNTY_NAME_TO_FIPS[county.county];
       if (fips === undefined) continue;
+
       const value = activeMetric === "velocity" ? county.absorptionRate : county.medianClosePrice;
       map.setFeatureState({ source: SOURCE_ID, id: fips }, { value });
     }
   }, [counties, activeMetric, mapLoaded]);
 
-  // ── selected county border + fitBounds ───────────────────────────────────
   useEffect(() => {
     if (!mapLoaded) return;
     const map = mapRef.current?.getMap();
     if (map === undefined) return;
 
-    if (selectedFips.current !== null) {
-      map.setFeatureState({ source: SOURCE_ID, id: selectedFips.current }, { selected: false });
+    if (selectedCountyId.current !== null) {
+      map.setFeatureState({ source: SOURCE_ID, id: selectedCountyId.current }, { selected: false });
     }
 
-    const nextFips = selectedCounty === null ? null : COUNTY_NAME_TO_FIPS[selectedCounty] ?? null;
+    const nextCountyId = selectedCounty === null ? null : COUNTY_NAME_TO_FIPS[selectedCounty] ?? null;
 
-    if (nextFips !== null) {
-      map.setFeatureState({ source: SOURCE_ID, id: nextFips }, { selected: true });
+    if (nextCountyId !== null) {
+      map.setFeatureState({ source: SOURCE_ID, id: nextCountyId }, { selected: true });
 
-      const bbox = countyBboxCache[nextFips];
+      const bbox = countyBboxCache[nextCountyId];
       if (bbox !== undefined) {
         const [minLng, minLat, maxLng, maxLat] = bbox;
         map.fitBounds(
@@ -284,97 +300,126 @@ export default function HeatmapMap({
       });
     }
 
-    selectedFips.current = nextFips;
+    selectedCountyId.current = nextCountyId;
   }, [selectedCounty, mapLoaded]);
 
   useEffect(() => {
     if (!mapLoaded) return;
     const map = mapRef.current?.getMap();
     if (map === undefined) return;
-    const nextSidebarHoveredCosubId =
+
+    if (selectedSubdivisionBoundaryId.current !== null) {
+      map.setFeatureState({ source: COUSUB_SOURCE_ID, id: selectedSubdivisionBoundaryId.current }, { selected: false });
+    }
+
+    const nextSelectedSubdivisionBoundaryId =
+      typeof selectedSubdivisionId === "string" && selectedSubdivisionId !== "" ? selectedSubdivisionId : null;
+
+    if (nextSelectedSubdivisionBoundaryId !== null) {
+      map.setFeatureState({ source: COUSUB_SOURCE_ID, id: nextSelectedSubdivisionBoundaryId }, { selected: true });
+    }
+
+    selectedSubdivisionBoundaryId.current = nextSelectedSubdivisionBoundaryId;
+  }, [selectedSubdivisionId, mapLoaded]);
+
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (map === undefined) return;
+
+    if (sidebarHoveredSubdivisionId.current !== null) {
+      map.setFeatureState(
+        { source: COUSUB_SOURCE_ID, id: sidebarHoveredSubdivisionId.current },
+        { sidebarHover: false },
+      );
+    }
+
+    const nextSidebarHoveredSubdivisionId =
       typeof hoveredSubdivisionId === "string" && hoveredSubdivisionId !== "" ? hoveredSubdivisionId : null;
 
-    if (sidebarHoveredCosubId.current !== null) {
-      map.setFeatureState({ source: COUSUB_SOURCE_ID, id: sidebarHoveredCosubId.current }, { sidebarHover: false });
+    if (nextSidebarHoveredSubdivisionId !== null) {
+      map.setFeatureState({ source: COUSUB_SOURCE_ID, id: nextSidebarHoveredSubdivisionId }, { sidebarHover: true });
     }
 
-    if (nextSidebarHoveredCosubId !== null) {
-      map.setFeatureState({ source: COUSUB_SOURCE_ID, id: nextSidebarHoveredCosubId }, { sidebarHover: true });
-      sidebarHoveredCosubId.current = nextSidebarHoveredCosubId;
-      return;
-    }
-
-    sidebarHoveredCosubId.current = null;
+    sidebarHoveredSubdivisionId.current = nextSidebarHoveredSubdivisionId;
   }, [hoveredSubdivisionId, mapLoaded]);
 
-  // ── hover ─────────────────────────────────────────────────────────────────
   const onMouseMove = useCallback(
-    (e: MapMouseEvent) => {
+    (event: MapMouseEvent) => {
       const map = mapRef.current?.getMap();
       if (map === undefined) return;
 
-      // clear all previous hover states
-      if (hoveredFips.current !== null) {
-        map.setFeatureState({ source: SOURCE_ID, id: hoveredFips.current }, { hover: false });
+      if (hoveredCountyId.current !== null) {
+        map.setFeatureState({ source: SOURCE_ID, id: hoveredCountyId.current }, { hover: false });
       }
-      if (hoveredCosubId.current !== null) {
-        map.setFeatureState({ source: COUSUB_SOURCE_ID, id: hoveredCosubId.current }, { hover: false });
+      if (hoveredSubdivisionBoundaryId.current !== null) {
+        map.setFeatureState({ source: COUSUB_SOURCE_ID, id: hoveredSubdivisionBoundaryId.current }, { hover: false });
       }
       if (hoveredPinId.current !== null) {
         map.setFeatureState({ source: PINS_SOURCE_ID, id: hoveredPinId.current }, { hover: false });
       }
 
-      const feature = e.features?.[0];
+      const feature = event.features?.[0];
 
       if (feature?.id === undefined) {
-        hoveredFips.current = null;
-        hoveredCosubId.current = null;
+        hoveredCountyId.current = null;
+        hoveredSubdivisionBoundaryId.current = null;
         hoveredPinId.current = null;
         setHover(null);
-      } else if (feature.layer?.id === PINS_CIRCLE_ID) {
-        // hovering a subdivision pin
-        const id = String(feature.id);
-        map.setFeatureState({ source: PINS_SOURCE_ID, id }, { hover: true });
-        hoveredPinId.current = id;
-        hoveredFips.current = null;
-        hoveredCosubId.current = null;
-        const props = feature.properties as Record<string, unknown>;
+        return;
+      }
+
+      if (feature.layer?.id === PINS_CIRCLE_ID) {
+        const pinId = String(feature.id);
+        map.setFeatureState({ source: PINS_SOURCE_ID, id: pinId }, { hover: true });
+        hoveredPinId.current = pinId;
+        hoveredCountyId.current = null;
+        hoveredSubdivisionBoundaryId.current = null;
+
+        const properties = feature.properties as Record<string, unknown>;
         setHover({
           kind: "pin",
-          posX: e.point.x,
-          posY: e.point.y,
-          name: String(props["name"] ?? ""),
-          builder: String(props["builder"] ?? ""),
-          absorptionRate: Number(props["absorptionRate"] ?? 0),
-          medianClosePrice: Number(props["medianClosePrice"] ?? 0),
+          posX: event.point.x,
+          posY: event.point.y,
+          name: String(properties["name"] ?? ""),
+          builder: String(properties["builder"] ?? ""),
+          absorptionRate: Number(properties["absorptionRate"] ?? 0),
+          medianClosePrice: Number(properties["medianClosePrice"] ?? 0),
         });
-      } else if (feature.layer?.id === COUSUB_FILL_ID) {
-        // hovering a cousub boundary
-        const id = String(feature.id);
-        map.setFeatureState({ source: COUSUB_SOURCE_ID, id }, { hover: true });
-        hoveredCosubId.current = id;
-        hoveredFips.current = null;
+        return;
+      }
+
+      if (feature.layer?.id === COUSUB_FILL_ID) {
+        const boundaryId = String(feature.id);
+        map.setFeatureState({ source: COUSUB_SOURCE_ID, id: boundaryId }, { hover: true });
+        hoveredSubdivisionBoundaryId.current = boundaryId;
+        hoveredCountyId.current = null;
         hoveredPinId.current = null;
-        const props = feature.properties as Record<string, unknown>;
+
+        const properties = feature.properties as Record<string, unknown>;
         setHover({
           kind: "cousub",
-          posX: e.point.x,
-          posY: e.point.y,
-          name: String(props["name"] ?? ""),
-          namelsad: String(props["namelsad"] ?? ""),
+          posX: event.point.x,
+          posY: event.point.y,
+          name: String(properties["name"] ?? ""),
+          namelsad: String(properties["namelsad"] ?? ""),
         });
+        return;
+      }
+
+      const countyId = String(feature.id);
+      map.setFeatureState({ source: SOURCE_ID, id: countyId }, { hover: true });
+      hoveredCountyId.current = countyId;
+      hoveredSubdivisionBoundaryId.current = null;
+      hoveredPinId.current = null;
+
+      const countyName = FIPS_TO_COUNTY_NAME[countyId];
+      const countyData = countyName === undefined ? undefined : counties.find((county) => county.county === countyName);
+
+      if (countyData !== undefined) {
+        setHover({ kind: "county", posX: event.point.x, posY: event.point.y, county: countyData });
       } else {
-        // hovering a county polygon
-        const fips = String(feature.id);
-        map.setFeatureState({ source: SOURCE_ID, id: fips }, { hover: true });
-        hoveredFips.current = fips;
-        hoveredCosubId.current = null;
-        hoveredPinId.current = null;
-        const countyName = FIPS_TO_COUNTY_NAME[fips];
-        const countyData = countyName === undefined ? undefined : counties.find((c) => c.county === countyName);
-        if (countyData !== undefined)
-          setHover({ kind: "county", posX: e.point.x, posY: e.point.y, county: countyData });
-        else setHover(null);
+        setHover(null);
       }
     },
     [counties],
@@ -383,33 +428,39 @@ export default function HeatmapMap({
   const onMouseLeave = useCallback(() => {
     const map = mapRef.current?.getMap();
     if (map !== undefined) {
-      if (hoveredFips.current !== null) {
-        map.setFeatureState({ source: SOURCE_ID, id: hoveredFips.current }, { hover: false });
-        hoveredFips.current = null;
+      if (hoveredCountyId.current !== null) {
+        map.setFeatureState({ source: SOURCE_ID, id: hoveredCountyId.current }, { hover: false });
+        hoveredCountyId.current = null;
       }
-      if (hoveredCosubId.current !== null) {
-        map.setFeatureState({ source: COUSUB_SOURCE_ID, id: hoveredCosubId.current }, { hover: false });
-        hoveredCosubId.current = null;
+      if (hoveredSubdivisionBoundaryId.current !== null) {
+        map.setFeatureState({ source: COUSUB_SOURCE_ID, id: hoveredSubdivisionBoundaryId.current }, { hover: false });
+        hoveredSubdivisionBoundaryId.current = null;
       }
       if (hoveredPinId.current !== null) {
         map.setFeatureState({ source: PINS_SOURCE_ID, id: hoveredPinId.current }, { hover: false });
         hoveredPinId.current = null;
       }
     }
+
     setHover(null);
   }, []);
 
-  // ── click ─────────────────────────────────────────────────────────────────
   const onClick = useCallback(
-    (e: MapMouseEvent) => {
-      const feature = e.features?.[0];
+    (event: MapMouseEvent) => {
+      const feature = event.features?.[0];
       if (feature?.id === undefined) return;
-      if (feature.layer?.id === PINS_CIRCLE_ID) return; // Layer 3 — future
-      if (feature.layer?.id === COUSUB_FILL_ID) return;
+
+      if (feature.layer?.id === PINS_CIRCLE_ID) return;
+
+      if (feature.layer?.id === COUSUB_FILL_ID) {
+        onSubdivisionSelect(String(feature.id));
+        return;
+      }
+
       const countyName = FIPS_TO_COUNTY_NAME[String(feature.id)];
       if (countyName !== undefined) onCountyClick(countyName);
     },
-    [onCountyClick],
+    [onCountyClick, onSubdivisionSelect],
   );
 
   if (MAPBOX_TOKEN === "") {
@@ -423,8 +474,7 @@ export default function HeatmapMap({
   }
 
   const fillPaint = activeMetric === "velocity" ? VELOCITY_FILL : PRICE_FILL;
-
-  const cosubFilter =
+  const countySubdivisionFilter =
     selectedCounty !== null ? (["==", ["get", "countyName"], selectedCounty] as never) : (["==", false, true] as never);
 
   return (
@@ -442,33 +492,29 @@ export default function HeatmapMap({
           mapRef.current?.getMap().doubleClickZoom.disable();
           setMapLoaded(true);
         }}
-        onError={(e) => {
+        onError={(event) => {
           // eslint-disable-next-line no-console
-          console.error("[HeatmapMap]", e.error.message);
+          console.error("[HeatmapMap]", event.error.message);
         }}
         style={{ width: "100%", height: "100%" }}
         cursor={hover !== null ? "pointer" : "grab"}
       >
-        {/* ── county choropleth ── */}
         <Source id={SOURCE_ID} type="geojson" data={GEOJSON_URL} generateId={false}>
           <Layer id={FILL_ID} type="fill" paint={fillPaint as never} />
           <Layer id={LINE_ID} type="line" paint={BORDER_LINE as never} />
         </Source>
 
-        {/* ── cousub boundary polygons (Census, visible on county select) ── */}
         <Source id={COUSUB_SOURCE_ID} type="geojson" data={COUSUB_URL} generateId={false}>
-          <Layer id={COUSUB_FILL_ID} type="fill" paint={COUSUB_FILL as never} filter={cosubFilter} />
-          <Layer id={COUSUB_LINE_ID} type="line" paint={COUSUB_LINE as never} filter={cosubFilter} />
+          <Layer id={COUSUB_FILL_ID} type="fill" paint={COUSUB_FILL as never} filter={countySubdivisionFilter} />
+          <Layer id={COUSUB_LINE_ID} type="line" paint={COUSUB_LINE as never} filter={countySubdivisionFilter} />
         </Source>
 
-        {/* ── subdivision pins (visible only when county selected) ── */}
         <Source id={PINS_SOURCE_ID} type="geojson" data={pinsGeoJson}>
           <Layer id={PINS_CIRCLE_ID} type="circle" paint={PIN_CIRCLE as never} />
         </Source>
       </Map>
 
-      {/* ── color legend ── */}
-      <div className="pointer-events-none absolute right-4 bottom-4 z-20 w-44 rounded-lg border border-white/10 bg-gray-900/95 p-3 shadow-xl">
+      <div className="pointer-events-none absolute bottom-4 right-4 z-20 w-44 rounded-lg border border-white/10 bg-gray-900/95 p-3 shadow-xl">
         {activeMetric === "velocity" ? (
           <>
             <p className="mb-2 text-[10px] font-bold tracking-widest text-gray-400 uppercase">Absorption Rate</p>
@@ -482,9 +528,9 @@ export default function HeatmapMap({
             </div>
             <div className="mt-2 flex flex-col gap-1">
               {[
-                { color: "#c0392b", label: "<5% — Slow market" },
-                { color: "#e67e22", label: "5–10% — Moderate" },
-                { color: "#27ae60", label: "10%+ — Hot market" },
+                { color: "#c0392b", label: "<5% - Slow market" },
+                { color: "#e67e22", label: "5-10% - Moderate" },
+                { color: "#27ae60", label: "10%+ - Hot market" },
               ].map(({ color, label }) => (
                 <div key={label} className="flex items-center gap-1.5">
                   <span className="size-2 rounded-full" style={{ backgroundColor: color }} />
@@ -506,9 +552,9 @@ export default function HeatmapMap({
             </div>
             <div className="mt-2 flex flex-col gap-1">
               {[
-                { color: "#0d3d5c", label: "<$300k — Affordable" },
-                { color: "#1478a0", label: "$300–450k — Mid" },
-                { color: "#8cddd6", label: "$450k+ — Premium" },
+                { color: "#0d3d5c", label: "<$300k - Affordable" },
+                { color: "#1478a0", label: "$300-450k - Mid" },
+                { color: "#8cddd6", label: "$450k+ - Premium" },
               ].map(({ color, label }) => (
                 <div key={label} className="flex items-center gap-1.5">
                   <span className="size-2 rounded-full" style={{ backgroundColor: color }} />
@@ -520,7 +566,6 @@ export default function HeatmapMap({
         )}
       </div>
 
-      {/* ── hover tooltip ── */}
       {hover !== null &&
         (hover.kind === "pin" ? (
           <div
@@ -542,7 +587,7 @@ export default function HeatmapMap({
             style={{ left: hover.posX + 14, top: hover.posY - 14 }}
           >
             <p className="text-xs font-bold text-white">{hover.namelsad !== "" ? hover.namelsad : hover.name}</p>
-            <p className="text-[10px] text-gray-500">Census subdivision boundary</p>
+            <p className="text-[10px] text-gray-500">County subdivision boundary</p>
           </div>
         ) : (
           <div
