@@ -37,7 +37,12 @@ const VELOCITY_FILL: LayerPaint = {
     ["coalesce", ["feature-state", "value"], 0],
     0, "#3a1f2a", 3, "#c0392b", 7, "#e67e22", 12, "#27ae60", 20, "#00875a",
   ],
-  "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.55, 0.4],
+  "fill-opacity": [
+    "case",
+    ["boolean", ["feature-state", "selected"], false], 0.1,
+    ["boolean", ["feature-state", "hover"], false], 0.55,
+    0.4,
+  ],
 };
 
 const PRICE_FILL: LayerPaint = {
@@ -46,7 +51,12 @@ const PRICE_FILL: LayerPaint = {
     ["coalesce", ["feature-state", "value"], 0],
     250000, "#0d3d5c", 350000, "#1478a0", 450000, "#00b4c8", 600000, "#8cddd6",
   ],
-  "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.55, 0.4],
+  "fill-opacity": [
+    "case",
+    ["boolean", ["feature-state", "selected"], false], 0.1,
+    ["boolean", ["feature-state", "hover"], false], 0.55,
+    0.4,
+  ],
 };
 
 const BORDER_LINE: LayerPaint = {
