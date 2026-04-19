@@ -25,10 +25,12 @@ const COUSUB_URL = "/data/fl-cousub.geojson";
 const PINS_SOURCE_ID = "fl-pins";
 const PINS_CIRCLE_ID = "fl-pins-circle";
 
-const INITIAL_VIEW = { longitude: -81.5, latitude: 27.8, zoom: 6 };
+const INITIAL_VIEW = { longitude: -81.5, latitude: 28.6, zoom: 20.3 };
+const FLORIDA_BBOX: [number, number, number, number] = [-82.85, 27.1, -79.95, 30.9];
+const FLORIDA_BBOX_PADDING = 70;
 
 type LayerPaint = Record<string, unknown>;
-type Coord = number[] | Coord[];
+type Coord = Coord[] | number[];
 
 const VELOCITY_FILL: LayerPaint = {
   "fill-color": [
@@ -136,7 +138,7 @@ const PIN_CIRCLE: LayerPaint = {
   "circle-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 1, 0.88],
 };
 
-function extractCoords(coords: Coord, out: [number, number][]): void {
+function extractCoords(coords: Coord, out: Array<[number, number]>): void {
   if (typeof coords[0] === "number") {
     out.push(coords as [number, number]);
     return;
@@ -148,7 +150,7 @@ function extractCoords(coords: Coord, out: [number, number][]): void {
 }
 
 function geometryBbox(geometry: { type: string; coordinates: Coord }): [number, number, number, number] {
-  const points: [number, number][] = [];
+  const points: Array<[number, number]> = [];
   extractCoords(geometry.coordinates, points);
 
   let minLng = Infinity;
@@ -197,8 +199,6 @@ interface HeatmapMapProps {
 }
 
 type HoverState =
-  | { kind: "county"; posX: number; posY: number; county: CountyMetric }
-  | { kind: "cousub"; posX: number; posY: number; name: string; namelsad: string }
   | {
       kind: "pin";
       posX: number;
@@ -207,7 +207,9 @@ type HoverState =
       builder: string;
       absorptionRate: number;
       medianClosePrice: number;
-    };
+    }
+  | { kind: "county"; posX: number; posY: number; county: CountyMetric }
+  | { kind: "cousub"; posX: number; posY: number; name: string; namelsad: string };
 
 export default function HeatmapMap({
   counties,
@@ -292,12 +294,14 @@ export default function HeatmapMap({
         );
       }
     } else {
-      map.flyTo({
-        center: [INITIAL_VIEW.longitude, INITIAL_VIEW.latitude],
-        zoom: INITIAL_VIEW.zoom,
-        duration: 1000,
-        essential: true,
-      });
+      const [minLng, minLat, maxLng, maxLat] = FLORIDA_BBOX;
+      map.fitBounds(
+        [
+          [minLng, minLat],
+          [maxLng, maxLat],
+        ],
+        { padding: FLORIDA_BBOX_PADDING, maxZoom: INITIAL_VIEW.zoom, duration: 1000, essential: true },
+      );
     }
 
     selectedCountyId.current = nextCountyId;
@@ -514,7 +518,7 @@ export default function HeatmapMap({
         </Source>
       </Map>
 
-      <div className="pointer-events-none absolute bottom-4 right-4 z-20 w-44 rounded-lg border border-white/10 bg-gray-900/95 p-3 shadow-xl">
+      <div className="pointer-events-none absolute right-4 bottom-4 z-20 w-44 rounded-lg border border-white/10 bg-gray-900/95 p-3 shadow-xl">
         {activeMetric === "velocity" ? (
           <>
             <p className="mb-2 text-[10px] font-bold tracking-widest text-gray-400 uppercase">Absorption Rate</p>
