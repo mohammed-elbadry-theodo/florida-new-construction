@@ -58,6 +58,7 @@ export default function HeatmapLayout(): React.ReactElement {
   const sortBy = useAppSelector(selectSortBy);
   const filterBuilder = useAppSelector(selectFilterBuilder);
 
+  const [hoveredCountyName, setHoveredCountyName] = useState<string | null>(null);
   const [hoveredSubdivisionId, setHoveredSubdivisionId] = useState<string | null>(null);
   const [subdivisionSearch, setSubdivisionSearch] = useState("");
   const [rightTab, setRightTab] = useState<"summary" | "builders">("summary");
@@ -188,6 +189,7 @@ export default function HeatmapLayout(): React.ReactElement {
               selectedCounty={selectedCounty}
               selectedSubdivisionId={selectedSubdivision}
               onCountyClick={handleCountyClick}
+              onCountyHover={setHoveredCountyName}
               onSubdivisionHover={setHoveredSubdivisionId}
               onSubdivisionSelect={handleSubdivisionSelect}
             />
@@ -200,6 +202,7 @@ export default function HeatmapLayout(): React.ReactElement {
               counties={counties}
               activeMetric={metric}
               selectedCounty={selectedCounty}
+              hoveredCountyName={hoveredCountyName}
               hoveredSubdivisionId={hoveredSubdivisionId}
               selectedSubdivisionId={selectedSubdivision}
               onCountyClick={handleCountyClick}

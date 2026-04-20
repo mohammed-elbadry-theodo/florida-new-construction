@@ -32,6 +32,17 @@ const FLORIDA_BBOX_PADDING = 70;
 type LayerPaint = Record<string, unknown>;
 type Coord = Coord[] | number[];
 
+const COUNTY_FILL_OPACITY = [
+  "case",
+  ["boolean", ["feature-state", "selected"], false],
+  0.1,
+  ["boolean", ["feature-state", "hover"], false],
+  0.55,
+  ["boolean", ["feature-state", "sidebarHover"], false],
+  0.55,
+  0.4,
+];
+
 const VELOCITY_FILL: LayerPaint = {
   "fill-color": [
     "interpolate",
@@ -48,14 +59,7 @@ const VELOCITY_FILL: LayerPaint = {
     20,
     "#00875a",
   ],
-  "fill-opacity": [
-    "case",
-    ["boolean", ["feature-state", "selected"], false],
-    0.1,
-    ["boolean", ["feature-state", "hover"], false],
-    0.55,
-    0.4,
-  ],
+  "fill-opacity": COUNTY_FILL_OPACITY,
 };
 
 const PRICE_FILL: LayerPaint = {
@@ -72,14 +76,7 @@ const PRICE_FILL: LayerPaint = {
     600000,
     "#8cddd6",
   ],
-  "fill-opacity": [
-    "case",
-    ["boolean", ["feature-state", "selected"], false],
-    0.1,
-    ["boolean", ["feature-state", "hover"], false],
-    0.55,
-    0.4,
-  ],
+  "fill-opacity": COUNTY_FILL_OPACITY,
 };
 
 const BORDER_LINE: LayerPaint = {
@@ -191,6 +188,7 @@ interface HeatmapMapProps {
   counties: CountyMetric[];
   activeMetric: MetricType;
   selectedCounty: string | null;
+  hoveredCountyName?: string | null;
   hoveredSubdivisionId?: string | null;
   selectedSubdivisionId?: string | null;
   subdivisions?: SubdivisionPin[];
@@ -215,6 +213,7 @@ export default function HeatmapMap({
   counties,
   activeMetric,
   selectedCounty,
+  hoveredCountyName,
   hoveredSubdivisionId,
   selectedSubdivisionId,
   subdivisions,
@@ -228,6 +227,7 @@ export default function HeatmapMap({
   const hoveredCountyId = useRef<string | null>(null);
   const hoveredSubdivisionBoundaryId = useRef<string | null>(null);
   const hoveredPinId = useRef<string | null>(null);
+  const sidebarHoveredCountyId = useRef<string | null>(null);
   const sidebarHoveredSubdivisionId = useRef<string | null>(null);
   const selectedCountyId = useRef<string | null>(null);
   const selectedSubdivisionBoundaryId = useRef<string | null>(null);
@@ -325,6 +325,26 @@ export default function HeatmapMap({
 
     selectedSubdivisionBoundaryId.current = nextSelectedSubdivisionBoundaryId;
   }, [selectedSubdivisionId, mapLoaded]);
+
+  useEffect(() => {
+    if (!mapLoaded) return;
+    const map = mapRef.current?.getMap();
+    if (map === undefined) return;
+
+    if (sidebarHoveredCountyId.current !== null) {
+      map.setFeatureState({ source: SOURCE_ID, id: sidebarHoveredCountyId.current }, { sidebarHover: false });
+    }
+
+    const nextId = hoveredCountyName !== undefined && hoveredCountyName !== null
+      ? COUNTY_NAME_TO_FIPS[hoveredCountyName] ?? null
+      : null;
+
+    if (nextId !== null) {
+      map.setFeatureState({ source: SOURCE_ID, id: nextId }, { sidebarHover: true });
+    }
+
+    sidebarHoveredCountyId.current = nextId;
+  }, [hoveredCountyName, mapLoaded]);
 
   useEffect(() => {
     if (!mapLoaded) return;
@@ -479,7 +499,7 @@ export default function HeatmapMap({
 
   const fillPaint = activeMetric === "velocity" ? VELOCITY_FILL : PRICE_FILL;
   const countySubdivisionFilter =
-    selectedCounty !== null ? (["==", ["get", "countyName"], selectedCounty] as never) : (["==", false, true] as never);
+    selectedCounty !== null ? (["==", ["get", "countyName"], selectedCounty] as never) : (["boolean", false] as never);
 
   return (
     <div className="relative size-full">

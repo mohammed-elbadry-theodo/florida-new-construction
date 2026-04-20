@@ -11,6 +11,7 @@ interface CountyRankingListProps {
   selectedCounty: string | null;
   selectedSubdivisionId: string | null;
   onCountyClick: (county: string) => void;
+  onCountyHover: (county: string | null) => void;
   onSubdivisionHover: (subdivisionId: string | null) => void;
   onSubdivisionSelect: (subdivisionId: string) => void;
 }
@@ -46,6 +47,7 @@ export default function CountyRankingList({
   selectedCounty,
   selectedSubdivisionId,
   onCountyClick,
+  onCountyHover,
   onSubdivisionHover,
   onSubdivisionSelect,
 }: CountyRankingListProps): React.ReactElement {
@@ -75,9 +77,9 @@ export default function CountyRankingList({
               type="button"
               aria-controls={subdivisionPanelId}
               aria-expanded={isSelected}
-              onClick={() => {
-                onCountyClick(item.county);
-              }}
+              onClick={() => { onCountyClick(item.county); }}
+              onMouseEnter={() => { onCountyHover(item.county); }}
+              onMouseLeave={() => { onCountyHover(null); }}
               className="flex w-full items-center gap-2 px-2 py-1.5 text-left"
             >
               <span className="w-5 shrink-0 text-right text-[10px] text-gray-600">{idx + 1}</span>
