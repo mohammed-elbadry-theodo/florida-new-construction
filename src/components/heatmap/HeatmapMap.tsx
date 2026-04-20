@@ -512,14 +512,10 @@ export default function HeatmapMap({
     <div className="relative size-full">
       <Map
         ref={mapRef}
-        minZoom={2}
-        bounds={[
-          [-82.85, 27.1],
-          [-79.95, 30.9],
-        ]}
+        minZoom={6.5}
         maxBounds={[
-          [-85.968018, 24.816654],
-          [-78.650146, 31.082161],
+          [-86.5, 24.3],
+          [-78.0, 31.8],
         ]}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle="mapbox://styles/mapbox/dark-v11"
