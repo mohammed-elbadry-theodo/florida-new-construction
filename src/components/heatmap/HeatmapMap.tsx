@@ -25,7 +25,7 @@ const COUSUB_URL = "/data/fl-cousub.geojson";
 const PINS_SOURCE_ID = "fl-pins";
 const PINS_CIRCLE_ID = "fl-pins-circle";
 
-const INITIAL_VIEW = { longitude: -81.5, latitude: 28.6, zoom: 20.3 };
+const INITIAL_VIEW = { longitude: -85.9, latitude: 24.6, zoom: 20.3 };
 const FLORIDA_BBOX: [number, number, number, number] = [-82.85, 27.1, -79.95, 30.9];
 const FLORIDA_BBOX_PADDING = 70;
 
@@ -194,6 +194,7 @@ interface HeatmapMapProps {
   subdivisions?: SubdivisionPin[];
   onCountyClick: (county: string) => void;
   onSubdivisionSelect: (subdivisionId: string) => void;
+  onClearSelection: () => void;
 }
 
 type HoverState =
@@ -219,6 +220,7 @@ export default function HeatmapMap({
   subdivisions,
   onCountyClick,
   onSubdivisionSelect,
+  onClearSelection,
 }: HeatmapMapProps): React.ReactElement {
   const mapRef = useRef<MapRef>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -335,9 +337,10 @@ export default function HeatmapMap({
       map.setFeatureState({ source: SOURCE_ID, id: sidebarHoveredCountyId.current }, { sidebarHover: false });
     }
 
-    const nextId = hoveredCountyName !== undefined && hoveredCountyName !== null
-      ? COUNTY_NAME_TO_FIPS[hoveredCountyName] ?? null
-      : null;
+    const nextId =
+      hoveredCountyName !== undefined && hoveredCountyName !== null
+        ? COUNTY_NAME_TO_FIPS[hoveredCountyName] ?? null
+        : null;
 
     if (nextId !== null) {
       map.setFeatureState({ source: SOURCE_ID, id: nextId }, { sidebarHover: true });
@@ -472,7 +475,11 @@ export default function HeatmapMap({
   const onClick = useCallback(
     (event: MapMouseEvent) => {
       const feature = event.features?.[0];
-      if (feature?.id === undefined) return;
+
+      if (feature?.id === undefined) {
+        onClearSelection();
+        return;
+      }
 
       if (feature.layer?.id === PINS_CIRCLE_ID) return;
 
@@ -484,7 +491,7 @@ export default function HeatmapMap({
       const countyName = FIPS_TO_COUNTY_NAME[String(feature.id)];
       if (countyName !== undefined) onCountyClick(countyName);
     },
-    [onCountyClick, onSubdivisionSelect],
+    [onCountyClick, onSubdivisionSelect, onClearSelection],
   );
 
   if (MAPBOX_TOKEN === "") {
@@ -505,6 +512,15 @@ export default function HeatmapMap({
     <div className="relative size-full">
       <Map
         ref={mapRef}
+        minZoom={2}
+        bounds={[
+          [-82.85, 27.1],
+          [-79.95, 30.9],
+        ]}
+        maxBounds={[
+          [-85.968018, 24.816654],
+          [-78.650146, 31.082161],
+        ]}
         mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle="mapbox://styles/mapbox/dark-v11"
         initialViewState={INITIAL_VIEW}

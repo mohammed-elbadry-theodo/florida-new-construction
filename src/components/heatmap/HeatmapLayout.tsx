@@ -207,6 +207,7 @@ export default function HeatmapLayout(): React.ReactElement {
               selectedSubdivisionId={selectedSubdivision}
               onCountyClick={handleCountyClick}
               onSubdivisionSelect={handleSubdivisionSelect}
+              onClearSelection={() => dispatch(setSelectedCounty(null))}
             />
           )}
         </main>
