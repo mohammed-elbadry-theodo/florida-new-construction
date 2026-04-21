@@ -54,3 +54,12 @@ export interface SubdivisionsApiResponse {
   county: string;
   month: string;
 }
+
+// ─── Rectangle selection ──────────────────────────────────────────────────────
+
+export interface RectangleBBox {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}

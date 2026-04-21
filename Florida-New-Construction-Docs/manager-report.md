@@ -63,7 +63,35 @@ All metric computation (absorption rate, median price, velocity tier) happens se
 
 When Bridge credentials are not configured, the app automatically uses realistic mock data covering all 23 counties (March 2026 figures), with realistic SFH vs. Townhome differentials (~12% lower prices and absorption for townhomes).
 
+# Layer 2 :
+
+### List of subdivisions:
+
+### List of builders :
+
+- to select the Builder name:
+  > GET /{dataset}/Property?$top=10&$select=BuilderName
+- For exact county:
+  > GET /api/v2/OData/{dataset}/Property?$filter=CountyOrParish eq 'Orange'&$select=BuilderName,CountyOrParish,SubdivisionName&
+- For exact subdivision:
+  > GET /api/v2/OData/{dataset}/Property?$filter=SubdivisionName eq 'Storey Park'&$select=BuilderName,SubdivisionName
+  > -> the bridge API give us the possibility to get a liste of buildes in a subdivision or a county by name.
+
 ---
+
+# Layer 3 :
+
+### Selection of a location:
+
+> GET /api/v2/OData/{dataset}/Property
+
+    ?access_token=...
+    &$filter=Latitude gt 28.30 and Latitude lt 28.55
+             and Longitude gt -81.45 and Longitude lt -81.15
+             and StandardStatus eq 'Active'
+    &$select=SubdivisionName,BuilderName,ListPrice,Latitude,Longitude,
+             PropertyType,CountyOrParish,ClosePrice,CloseDate
+    &$top=200
 
 ## Bridge API Feasibility Assessment
 

@@ -5,10 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { COUNTY_NAME_TO_FIPS, FIPS_TO_COUNTY_NAME } from "./fl-counties.config";
 import type { CountyMetric, MetricType, SubdivisionPin } from "./types";
 
-import type { FeatureCollection, Point } from "geojson";
+import type { FeatureCollection, Point, Polygon } from "geojson";
 import type { MapMouseEvent } from "mapbox-gl";
 import type { MapRef } from "react-map-gl/mapbox";
 import Map, { Layer, Source } from "react-map-gl/mapbox";
+
+import type { RectangleBBox } from "./types";
 
 const MAPBOX_TOKEN = process.env["NEXT_PUBLIC_MAPBOX_TOKEN"] ?? "";
 
@@ -24,6 +26,33 @@ const COUSUB_URL = "/data/fl-cousub.geojson";
 
 const PINS_SOURCE_ID = "fl-pins";
 const PINS_CIRCLE_ID = "fl-pins-circle";
+
+const RECT_SOURCE_ID = "rect-selection";
+const RECT_FILL_ID  = "rect-selection-fill";
+const RECT_LINE_ID  = "rect-selection-line";
+
+function bboxToGeoJson(bbox: RectangleBBox): FeatureCollection<Polygon> {
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        id: "rect",
+        geometry: {
+          type: "Polygon",
+          coordinates: [[
+            [bbox.west,  bbox.south],
+            [bbox.east,  bbox.south],
+            [bbox.east,  bbox.north],
+            [bbox.west,  bbox.north],
+            [bbox.west,  bbox.south],
+          ]],
+        },
+        properties: {},
+      },
+    ],
+  };
+}
 
 const INITIAL_VIEW = { longitude: -85.9, latitude: 24.6, zoom: 20.3 };
 const FLORIDA_BBOX: [number, number, number, number] = [-82.85, 27.1, -79.95, 30.9];
@@ -192,9 +221,11 @@ interface HeatmapMapProps {
   hoveredSubdivisionId?: string | null;
   selectedSubdivisionId?: string | null;
   subdivisions?: SubdivisionPin[];
+  activeBbox: RectangleBBox | null;
   onCountyClick: (county: string) => void;
   onSubdivisionSelect: (subdivisionId: string) => void;
   onClearSelection: () => void;
+  onRectangleSelect: (bbox: RectangleBBox | null) => void;
 }
 
 type HoverState =
@@ -210,6 +241,13 @@ type HoverState =
   | { kind: "county"; posX: number; posY: number; county: CountyMetric }
   | { kind: "cousub"; posX: number; posY: number; name: string; namelsad: string };
 
+interface SelectionRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export default function HeatmapMap({
   counties,
   activeMetric,
@@ -218,13 +256,21 @@ export default function HeatmapMap({
   hoveredSubdivisionId,
   selectedSubdivisionId,
   subdivisions,
+  activeBbox,
   onCountyClick,
   onSubdivisionSelect,
   onClearSelection,
+  onRectangleSelect,
 }: HeatmapMapProps): React.ReactElement {
+  const isLayer2 = selectedCounty !== null;
   const mapRef = useRef<MapRef>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [hover, setHover] = useState<HoverState | null>(null);
+
+  // ── Rectangle selection state ────────────────────────────────────────────────
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
+  const dragStartPx = useRef<{ x: number; y: number } | null>(null);
 
   const hoveredCountyId = useRef<string | null>(null);
   const hoveredSubdivisionBoundaryId = useRef<string | null>(null);
@@ -494,6 +540,66 @@ export default function HeatmapMap({
     [onCountyClick, onSubdivisionSelect, onClearSelection],
   );
 
+  // ── Rectangle selection handlers (Layer 2 only) ───────────────────────────────
+  const onWrapperMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!e.shiftKey || !isLayer2) return;
+    e.preventDefault();
+    const map = mapRef.current?.getMap();
+    map?.dragPan.disable();
+    const bounds = e.currentTarget.getBoundingClientRect();
+    dragStartPx.current = { x: e.clientX - bounds.left, y: e.clientY - bounds.top };
+    setIsDrawing(true);
+    setSelectionRect(null);
+  }, [isLayer2]);
+
+  const onWrapperMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDrawing || dragStartPx.current === null) return;
+    const bounds = e.currentTarget.getBoundingClientRect();
+    const cx = e.clientX - bounds.left;
+    const cy = e.clientY - bounds.top;
+    const sx = dragStartPx.current.x;
+    const sy = dragStartPx.current.y;
+    setSelectionRect({ x: Math.min(sx, cx), y: Math.min(sy, cy), w: Math.abs(cx - sx), h: Math.abs(cy - sy) });
+  }, [isDrawing]);
+
+  const onWrapperMouseUp = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDrawing || dragStartPx.current === null) return;
+    const map = mapRef.current?.getMap();
+    map?.dragPan.enable();
+
+    const bounds = e.currentTarget.getBoundingClientRect();
+    const cx = e.clientX - bounds.left;
+    const cy = e.clientY - bounds.top;
+    const sx = dragStartPx.current.x;
+    const sy = dragStartPx.current.y;
+
+    if (map !== undefined && Math.abs(cx - sx) > 10 && Math.abs(cy - sy) > 10) {
+      const sw = map.unproject([Math.min(sx, cx), Math.max(sy, cy)]);
+      const ne = map.unproject([Math.max(sx, cx), Math.min(sy, cy)]);
+      const bbox: RectangleBBox = { south: sw.lat, north: ne.lat, west: sw.lng, east: ne.lng };
+      // eslint-disable-next-line no-console
+      console.log("[Rectangle Selection] bbox:", bbox);
+      // eslint-disable-next-line no-console
+      console.log(
+        "[Rectangle Selection] Bridge $filter:",
+        `Latitude gt ${bbox.south.toFixed(6)} and Latitude lt ${bbox.north.toFixed(6)} and Longitude gt ${bbox.west.toFixed(6)} and Longitude lt ${bbox.east.toFixed(6)}`,
+      );
+      onRectangleSelect(bbox);
+    }
+
+    dragStartPx.current = null;
+    setIsDrawing(false);
+    setSelectionRect(null);
+  }, [isDrawing, onRectangleSelect]);
+
+  const onWrapperMouseLeave = useCallback(() => {
+    if (!isDrawing) return;
+    mapRef.current?.getMap()?.dragPan.enable();
+    dragStartPx.current = null;
+    setIsDrawing(false);
+    setSelectionRect(null);
+  }, [isDrawing]);
+
   if (MAPBOX_TOKEN === "") {
     return (
       <div className="flex size-full items-center justify-center text-sm text-gray-500">
@@ -509,7 +615,28 @@ export default function HeatmapMap({
     selectedCounty !== null ? (["==", ["get", "countyName"], selectedCounty] as never) : (["boolean", false] as never);
 
   return (
-    <div className="relative size-full">
+    <div
+      className="relative size-full"
+      onMouseDown={onWrapperMouseDown}
+      onMouseMove={onWrapperMouseMove}
+      onMouseUp={onWrapperMouseUp}
+      onMouseLeave={onWrapperMouseLeave}
+    >
+      {/* Shift+drag hint — Layer 2 only */}
+      {isLayer2 && !isDrawing && activeBbox === null && (
+        <div className="pointer-events-none absolute top-3 left-1/2 z-20 -translate-x-1/2 rounded-md border border-white/10 bg-gray-900/80 px-3 py-1.5 text-[10px] text-gray-400">
+          Hold <span className="rounded bg-white/10 px-1 font-mono text-gray-300">Shift</span> + drag to select an area
+        </div>
+      )}
+
+      {/* Live rectangle overlay */}
+      {selectionRect !== null && (
+        <div
+          className="pointer-events-none absolute z-30 rounded-sm border-2 border-sky-400 bg-sky-400/10"
+          style={{ left: selectionRect.x, top: selectionRect.y, width: selectionRect.w, height: selectionRect.h }}
+        />
+      )}
+
       <Map
         ref={mapRef}
         minZoom={6.5}
@@ -533,7 +660,7 @@ export default function HeatmapMap({
           console.error("[HeatmapMap]", event.error.message);
         }}
         style={{ width: "100%", height: "100%" }}
-        cursor={hover !== null ? "pointer" : "grab"}
+        cursor={isDrawing ? "crosshair" : hover !== null ? "pointer" : "grab"}
       >
         <Source id={SOURCE_ID} type="geojson" data={GEOJSON_URL} generateId={false}>
           <Layer id={FILL_ID} type="fill" paint={fillPaint as never} />
@@ -548,6 +675,22 @@ export default function HeatmapMap({
         <Source id={PINS_SOURCE_ID} type="geojson" data={pinsGeoJson}>
           <Layer id={PINS_CIRCLE_ID} type="circle" paint={PIN_CIRCLE as never} />
         </Source>
+
+        {/* Persistent rectangle selection layer */}
+        {activeBbox !== null && (
+          <Source id={RECT_SOURCE_ID} type="geojson" data={bboxToGeoJson(activeBbox)}>
+            <Layer
+              id={RECT_FILL_ID}
+              type="fill"
+              paint={{ "fill-color": "#38bdf8", "fill-opacity": 0.08 }}
+            />
+            <Layer
+              id={RECT_LINE_ID}
+              type="line"
+              paint={{ "line-color": "#38bdf8", "line-width": 2, "line-dasharray": [4, 2] }}
+            />
+          </Source>
+        )}
       </Map>
 
       <div className="pointer-events-none absolute right-4 bottom-4 z-20 w-44 rounded-lg border border-white/10 bg-gray-900/95 p-3 shadow-xl">

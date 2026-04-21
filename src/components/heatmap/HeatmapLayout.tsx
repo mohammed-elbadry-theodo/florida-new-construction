@@ -33,6 +33,8 @@ import CountySubdivisionSpotlightCard from "./CountySubdivisionSpotlightCard";
 import FilterSortBar from "./FilterSortBar";
 import HomeTypeToggle from "./HomeTypeToggle";
 import MetricToggle from "./MetricToggle";
+import RectangleSelectionPanel from "./RectangleSelectionPanel";
+import type { RectangleBBox } from "./types";
 
 import { cn } from "~components/lib/utils";
 
@@ -62,6 +64,7 @@ export default function HeatmapLayout(): React.ReactElement {
   const [hoveredSubdivisionId, setHoveredSubdivisionId] = useState<string | null>(null);
   const [subdivisionSearch, setSubdivisionSearch] = useState("");
   const [rightTab, setRightTab] = useState<"summary" | "builders">("summary");
+  const [rectangleBbox, setRectangleBbox] = useState<RectangleBBox | null>(null);
 
   const { counties, loading, month } = useCountyMetrics(metric, homeType);
   const { loading: subdivisionSummariesLoading, summaries: subdivisionSummaries } = useCountySubdivisionSummaries(
@@ -115,6 +118,7 @@ export default function HeatmapLayout(): React.ReactElement {
   useEffect(() => {
     setHoveredSubdivisionId(null);
     setRightTab("summary");
+    setRectangleBbox(null);
   }, [selectedCounty]);
 
   const handleCountyClick = (county: string) => {
@@ -123,7 +127,12 @@ export default function HeatmapLayout(): React.ReactElement {
   };
 
   const handleSubdivisionSelect = (subdivisionId: string) => {
-    dispatch(setSelectedSubdivision(subdivisionId));
+    if (selectedSubdivision === subdivisionId) {
+      dispatch(setSelectedSubdivision(null));
+      setRightTab("summary");
+    } else {
+      dispatch(setSelectedSubdivision(subdivisionId));
+    }
   };
 
   const clearSelectedSubdivision = () => {
@@ -205,9 +214,15 @@ export default function HeatmapLayout(): React.ReactElement {
               hoveredCountyName={hoveredCountyName}
               hoveredSubdivisionId={hoveredSubdivisionId}
               selectedSubdivisionId={selectedSubdivision}
+              subdivisions={subdivisionPins ?? []}
+              activeBbox={rectangleBbox}
               onCountyClick={handleCountyClick}
               onSubdivisionSelect={handleSubdivisionSelect}
               onClearSelection={() => dispatch(setSelectedCounty(null))}
+              onRectangleSelect={(bbox) => {
+                setRectangleBbox(bbox);
+                if (bbox !== null) setRightTab("summary");
+              }}
             />
           )}
         </main>
@@ -248,6 +263,12 @@ export default function HeatmapLayout(): React.ReactElement {
                   />
                 )}
               </>
+            ) : rectangleBbox !== null && selectedCounty !== null ? (
+              <RectangleSelectionPanel
+                bbox={rectangleBbox}
+                subdivisionPins={subdivisionPins ?? []}
+                onClear={() => setRectangleBbox(null)}
+              />
             ) : selectedSubdivision !== null ? (
               subdivisionSummariesLoading && selectedSubdivisionSummary === null ? (
                 <p className="px-1 pt-2 text-[11px] text-gray-600">Loading subdivision details...</p>
