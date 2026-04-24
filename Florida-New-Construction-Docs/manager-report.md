@@ -42,6 +42,8 @@ Users can filter by **home type** (Single-Family Home vs. Townhome) and switch b
 
 ![Median Rate](image-3.png)
 
+![filter](image-6.png)
+
 ## Data: Where It Comes From
 
 ### Primary Source — Bridge Data Output (MLS Feed)
@@ -77,7 +79,7 @@ When Bridge credentials are not configured, the app automatically uses realistic
   > GET /api/v2/OData/{dataset}/Property?$filter=SubdivisionName eq 'Storey Park'&$select=BuilderName,SubdivisionName
   > -> the bridge API give us the possibility to get a liste of buildes in a subdivision or a county by name.
 
----
+## ![alt text](image-4.png)
 
 # Layer 3 :
 
@@ -88,30 +90,9 @@ When Bridge credentials are not configured, the app automatically uses realistic
     ?access_token=...
     &$filter=Latitude gt 28.30 and Latitude lt 28.55
              and Longitude gt -81.45 and Longitude lt -81.15
-             and StandardStatus eq 'Active'
-    &$select=SubdivisionName,BuilderName,ListPrice,Latitude,Longitude,
-             PropertyType,CountyOrParish,ClosePrice,CloseDate
-    &$top=200
+    -> this one select the properties that are present within a selected Geo cart.
 
-## Bridge API Feasibility Assessment
-
-| Aspect                   | Status              | Notes                                                                                                                     |
-| ------------------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **API Integration Code** | ✅ Complete         | `bridge-heatmap.service.ts` fully implemented                                                                             |
-| **Authentication**       | ✅ Ready            | Bearer token via env variable `BRIDGE_SERVER_TOKEN`                                                                       |
-| **Query Design**         | ✅ Solid            | OData `$filter`, `$select`, pagination with 10k record safety cap                                                         |
-| **Active Inventory**     | ✅ Direct           | Filter by `StandardStatus eq 'Active'`                                                                                    |
-| **Closed Sales**         | ✅ Direct           | Filter by `CloseDate` date range window                                                                                   |
-| **Absorption Rate**      | ✅ Computed         | Formula: Closed / (Active + Closed) × 100                                                                                 |
-| **Median Price**         | ✅ Computed         | Server-side sorted median of `ClosePrice` values                                                                          |
-| **MoM Deltas**           | ✅ Computed         | Prior month fetched in parallel                                                                                           |
-| **Property Type**        | ⚠️ Needs Validation | SFH = `'Residential'`, Townhome = `'Residential Income'` — field values must be confirmed per MLS                         |
-| **Missing Credentials**  | ⚠️ Blocker          | `BRIDGE_DATASET_ID` and `BRIDGE_SERVER_TOKEN` are empty; live data requires these                                         |
-| **Field Availability**   | ⚠️ Needs Check      | `ClosePrice` and `CloseDate` availability depends on MLS feed permissions — must validate via Bridge `$metadata` endpoint |
-
-**Bottom line:** The integration is architecturally complete and ready to go live the moment Bridge credentials are supplied. The main risk is MLS field availability (close price/date may be restricted on some feeds) and confirming the correct `PropertyType` values for townhomes in each MLS.
-
----
+![Layer 3 - selection area and summery of this selected area](image-5.png)
 
 ## Covered Counties (23 Total)
 
@@ -146,40 +127,6 @@ node scripts/generate-fl-geojson.mjs
 
 The output file is already committed to the repo — this script only needs to be re-run if the county list changes.
 
----
-
-### County Index — FIPS Codes
-
-Each county is identified internally by its **US Census Bureau FIPS code**, used to match GeoJSON map polygons to API data.
-
-| #   | County       | FIPS Code | Region               |
-| --- | ------------ | --------- | -------------------- |
-| 1   | Alachua      | 12001     | Northeast FL         |
-| 2   | Baker        | 12003     | Northeast FL         |
-| 3   | Brevard      | 12009     | Central/Southwest FL |
-| 4   | Citrus       | 12017     | Central/Southwest FL |
-| 5   | Clay         | 12019     | Northeast FL         |
-| 6   | Duval        | 12031     | Northeast FL         |
-| 7   | Flagler      | 12035     | Northeast FL         |
-| 8   | Hernando     | 12053     | Central/Southwest FL |
-| 9   | Hillsborough | 12057     | Central/Southwest FL |
-| 10  | Indian River | 12061     | Treasure Coast       |
-| 11  | Lake         | 12069     | Central/Southwest FL |
-| 12  | Manatee      | 12081     | Central/Southwest FL |
-| 13  | Marion       | 12083     | Central/Southwest FL |
-| 14  | Nassau       | 12089     | Northeast FL         |
-| 15  | Orange       | 12095     | Central/Southwest FL |
-| 16  | Osceola      | 12097     | Central/Southwest FL |
-| 17  | Pasco        | 12101     | Central/Southwest FL |
-| 18  | Polk         | 12105     | Central/Southwest FL |
-| 19  | St. Johns    | 12109     | Northeast FL         |
-| 20  | St. Lucie    | 12111     | Treasure Coast       |
-| 21  | Seminole     | 12117     | Central/Southwest FL |
-| 22  | Sumter       | 12119     | Central/Southwest FL |
-| 23  | Volusia      | 12127     | Central/Southwest FL |
-
----
-
 ## Tech Stack
 
 | Layer              | Technology                         |
@@ -195,19 +142,17 @@ Each county is identified internally by its **US Census Bureau FIPS code**, used
 
 ## Current Build Status
 
-| Item                                | Status                                                         |
-| ----------------------------------- | -------------------------------------------------------------- |
-| Choropleth map with 23 counties     | ✅ Done                                                        |
-| Velocity ↔ Median Price toggle     | ✅ Done                                                        |
-| SFH ↔ Townhome toggle              | ✅ Done                                                        |
-| County ranking list with MoM deltas | ✅ Done                                                        |
-| County spotlight detail card        | ✅ Done                                                        |
-| Mock data (fully functional)        | ✅ Done                                                        |
-| Bridge API integration scaffolded   | ✅ Done                                                        |
-| Bridge credentials connected        | ❌ Pending — needs `BRIDGE_DATASET_ID` + `BRIDGE_SERVER_TOKEN` |
-| Live data validation                | ❌ Pending                                                     |
-| Layer 2 (county drill-down)         | 🔲 Planned — next phase                                        |
-| Layer 3 (subdivision snapshot)      | 🔲 Planned — future                                            |
-| Layer 4 (historical time-series)    | 🔲 Planned — future                                            |
-
--> If you use cousub, you will get many extra smaller polygons and the map logic will be wrong
+| Item                                | Status                                                 |
+| ----------------------------------- | ------------------------------------------------------ |
+| Choropleth map with 23 counties     | ✅ Done                                                |
+| Velocity ↔ Median Price toggle     | ✅ Done                                                |
+| SFH ↔ Townhome toggle              | ✅ Done                                                |
+| County ranking list with MoM deltas | ✅ Done                                                |
+| County spotlight detail card        | ✅ Done                                                |
+| Mock data (fully functional)        | ✅ Done                                                |
+| Bridge API integration scaffolded   | ✅ Done                                                |
+| Bridge credentials connected        | ❌ we need `BRIDGE_DATASET_ID` + `BRIDGE_SERVER_TOKEN` |
+| Live data validation                | ❌ No data access                                      |
+| Layer 2 (county drill-down)         | ✅ Done                                                |
+| Layer 3 (subdivision snapshot)      | ⏳ Selection area implimented (need snapshot data)     |
+| Layer 4 (historical time-series)    | 🔲 future                                              |

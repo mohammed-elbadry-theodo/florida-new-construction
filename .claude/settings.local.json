@@ -14,7 +14,22 @@
       "Bash(node scripts/generate-cousub-geojson.mjs)",
       "Bash(pnpm add *)",
       "Bash(pnpm tsc *)",
-      "Bash(xargs wc *)"
+      "Bash(xargs wc *)",
+      "WebFetch(domain:bridgedataoutput.com)",
+      "WebFetch(domain:reso.org)",
+      "WebFetch(domain:ddwiki.reso.org)",
+      "WebFetch(domain:www.bridgeinteractive.com)",
+      "WebFetch(domain:mlsgrid.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:docs.mlsgrid.com)",
+      "WebFetch(domain:www.odata.org)",
+      "WebFetch(domain:resospec.org)",
+      "WebFetch(domain:www.reso.org)",
+      "WebFetch(domain:docs.oasis-open.org)",
+      "WebFetch(domain:community.reso.org)",
+      "WebFetch(domain:sparkplatform.com)",
+      "WebFetch(domain:developer.estated.com)",
+      "WebFetch(domain:api.bridgedataoutput.com)"
     ]
   }
 }

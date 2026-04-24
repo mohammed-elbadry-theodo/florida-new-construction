@@ -1,34 +1,8 @@
-# Nimbleways Next.js Boilerplate
+# Florida New Construction Analytics
 
-## IDE extensions
+An interactive dashboard tracking new residential construction across 23 Florida counties. Displays a choropleth map with two core metrics — **Sales Velocity (Absorption Rate)** and **Median Close Price** — filterable by home type (SFH / Townhome), with county drill-down and subdivision-level snapshots powered by the Bridge Interactive MLS API.
 
-### VSCode
+## Documentation
 
-it s highly required to install the recommended extensions by runing in vscode prompt command
-`> Show recommended extensions`
-
-### Jetbrians IDE
-
-install manually this [Conventional commit plugin](https://plugins.jetbrains.com/plugin/13389-conventional-commit).
-
-## Package manager
-
-We use `pnpm` as package manager. The version is enforced for all the developers by setting it explicitly with `engines.npm` in `package.json`.
-
-## Corepack
-
-We use `corepack` to ensure all developers use the same version of package managers. Corepack is a tool that comes with Node.js and manages package manager versions. It reads the version requirements from `package.json` and automatically installs and uses the correct version of the package manager.
-
-To enable corepack, run:
-
-```sh
-corepack enable && corepack prepare --activate
-```
-
-To update the version used by the team
-
-```sh
-# corepack use pnpm@<version>
-# eg:
-corepack use pnpm@latest
-```
+- [Manager Report](Florida-New-Construction-Docs/manager-report.md) — project overview, layers, status
+- [Metrics & Queries](Florida-New-Construction-Docs/Metrique.md) — metric definitions and Bridge API queries
